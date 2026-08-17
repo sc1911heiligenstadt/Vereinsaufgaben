@@ -514,3 +514,131 @@ nav .nav-right { margin-left: auto; display: flex; gap: inherit; }
   .admin-row { align-items:flex-start; }
   input, select, textarea { font-size:16px; }
 }
+
+/* ================= Klubzertifizierung ================= */
+
+/* ---- Fortschritt: zwei Balken plus die Aufgabenlage ----
+   Liegen im bestehenden .summary-cards-Grid (auto-fit, minmax(180px,1fr)), damit
+   sie sich am Handy von selbst untereinander legen. */
+.zf-block { background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; max-width:100%; }
+.zf-kopf { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.zf-label { font-size:.78rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+.zf-zahl { font-size:1.15rem; font-weight:800; color:var(--text); white-space:nowrap; }
+.zf-balken { height:8px; border-radius:4px; background:#eef1f4; overflow:hidden; margin:8px 0 6px; }
+/* Die Breite setzt JS je Stand; Farbe und Übergang gehören hierher. Bewusst
+   KEINE Kurzform mit var() -- eine unauflösbare var() macht die ganze
+   Kurzform ungültig und der Balken verlöre seine Grundform. */
+.zf-balken > span { display:block; height:100%; background:var(--blue); border-radius:4px; transition:width .25s ease; }
+.zf-sub { font-size:.78rem; color:var(--muted); overflow-wrap:anywhere; }
+.zf-sub .warn { color:var(--red); font-weight:600; }
+
+/* ---- Bedienleiste des Tabs ----
+   ⚠️ align-items:center und flex-wrap sind Pflicht: unter 820 px zwingt die
+   Flottenregel `select{font-size:16px}` das Auswahlfeld auf ~38 px Höhe, und in
+   einer Flex-Leiste zieht das höchste Element alle anderen mit. */
+.zert-leiste { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.zert-arten { display:flex; gap:6px; flex-wrap:wrap; }
+.zert-art-btn {
+  padding:7px 14px; border:1px solid var(--border); border-radius:999px; background:#fff;
+  cursor:pointer; font:inherit; font-size:14px; color:var(--text); display:flex; align-items:center; gap:7px;
+}
+.zert-art-btn:hover { background:var(--blue-light); }
+.zert-art-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+.zab-zahl { font-size:.76rem; font-weight:700; opacity:.85; }
+/* Zwei Beschriftungen je Knopf, immer genau eine sichtbar. Die Kurzform greift
+   erst unter 560 px -- am Tablet ist Platz für das ganze Wort. */
+.za-kurz { display:none; }
+/* Eigene Regel statt .form-field: dort gilt `input{width:100%}` und `label{display:block}`,
+   das machte aus dem Kästchen einen Balken auf eigener Zeile. */
+.zert-schalter { display:flex; align-items:center; gap:7px; font-size:14px; cursor:pointer; white-space:nowrap; }
+.zert-schalter input { width:16px; height:16px; flex-shrink:0; }
+.zert-leiste select { padding:7px 9px; border:1px solid var(--border); border-radius:7px; font:inherit; font-size:14px; max-width:100%; }
+
+/* ---- Die drei Bereiche ---- */
+.zert-bereich { border:1px solid var(--border); border-radius:8px; background:#fff; margin-bottom:10px; max-width:100%; }
+.zert-bereich > summary {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:11px 14px; cursor:pointer; font-weight:600; list-style:revert;
+}
+.zert-bereich > summary:hover { background:#f4f7fb; }
+.zb-name { min-width:0; overflow-wrap:anywhere; }
+.zb-zahl { font-size:.78rem; font-weight:600; background:#eaf1f9; color:#2c6fbb; padding:2px 9px; border-radius:10px; white-space:nowrap; }
+.zert-liste { display:flex; flex-direction:column; gap:5px; padding:0 10px 12px; }
+
+/* ---- Eine Kriteriumszeile ---- */
+.zert-zeile {
+  display:flex; align-items:center; gap:11px; width:100%; padding:9px 11px;
+  border:1px solid #e3e8ee; border-radius:7px; background:#fff; cursor:pointer;
+  text-align:left; font:inherit; flex-wrap:wrap; max-width:100%;
+}
+.zert-zeile:hover { border-color:#b9c8da; background:#f8fafc; }
+.zert-zeile.ueberfaellig { border-left:4px solid var(--red); }
+.zz-nr { font-size:.78rem; font-weight:700; color:var(--muted); background:var(--gray);
+  border-radius:5px; padding:2px 7px; flex-shrink:0; }
+/* min-width:0 ist Pflicht, sonst sprengt ein langer Wortlaut die Zeile. */
+.zz-haupt { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 220px; }
+.zz-name { font-weight:600; overflow-wrap:anywhere; }
+.zz-meta { font-size:.8rem; color:var(--muted); overflow-wrap:anywhere; }
+.zz-rechts { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.zz-status { display:inline-block; padding:3px 9px; border-radius:11px; color:#fff;
+  font-size:.76rem; font-weight:600; white-space:nowrap; }
+.zz-arbeit { font-size:.72rem; font-weight:700; color:#8a5b00; background:var(--gold-light);
+  border-radius:10px; padding:2px 8px; white-space:nowrap; }
+
+/* ---- Kriterium im Detail ---- */
+.zert-wortlaut { background:#f6f8fa; border-radius:7px; padding:11px 13px; }
+.zert-status-row { justify-content:flex-start; }
+.zert-status-row .btn[disabled] { opacity:1; cursor:default; }
+
+.zert-aufgaben { display:flex; flex-direction:column; gap:6px; }
+.zert-aufgabe-row {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:8px 10px; border:1px solid #e8ecf1; border-radius:7px; background:#fff;
+}
+.zert-aufgabe-row.ueberfaellig { border-left:3px solid var(--red); }
+.zert-aufgabe-row.erledigt { background:#f7faf8; }
+.zert-aufgabe-row.erledigt .za-titel { text-decoration:line-through; color:var(--muted); }
+/* Das Kästchen bleibt bei fehlendem Recht bedienbar und wird nur ausgegraut -- ein
+   `disabled` schluckt den Klick kommentarlos, der Handler sagt stattdessen, warum. */
+.za-haken { display:flex; align-items:flex-start; gap:9px; flex:1 1 220px; min-width:0;
+  cursor:pointer; font-size:14px; }
+.za-haken.gesperrt { opacity:.6; }
+.za-haken input { width:16px; height:16px; flex-shrink:0; margin-top:2px; }
+.za-titel { overflow-wrap:anywhere; }
+.za-meta { font-size:.78rem; color:var(--muted); overflow-wrap:anywhere; }
+.za-meta .warn { color:var(--red); font-weight:600; }
+
+/* ---- Bericht ---- */
+.zp-zusatz { font-size:.75rem; color:#444; }
+
+/* ⚠️ Am Handy gemessen und danach gezielt gekürzt: die Leiste kostete zuerst
+   181 px über der Liste (jeder Umschalter eine eigene Zeile, Häkchen und
+   Auswahlfeld je eine weitere), eine Kriteriumszeile mit Wortlaut-Auszug 158 px.
+   Die drei Regeln unten bringen das auf 111 bzw. 124 px, ohne eine Angabe
+   wegzunehmen. */
+@media (max-width: 560px) {
+  .za-lang { display:none; }
+  .za-kurz { display:inline; }
+  /* Die zwei Umschalter teilen sich EINE Zeile. min-width:0 ist Pflicht, sonst
+     erzwingt der Text die Wunschbreite und der zweite Knopf bricht doch um. */
+  .zert-arten { flex:1 1 100%; }
+  .zert-art-btn { flex:1 1 0; min-width:0; justify-content:center; }
+  /* Häkchen und Auswahlfeld teilen sich die nächste Zeile. Die 130 px sind die
+     Reißleine: wird es enger, bricht das Feld doch um statt zu schrumpfen.
+     ⚠️ Wer das Häkchen je entfernt, holt hier `flex: 1 1 100%` zurück. */
+  .zert-leiste select { flex:1 1 130px; min-width:0; }
+  /* Der Wortlaut-Auszug bleibt lesbar, deckelt die Zeile aber auf zwei Zeilen --
+     ohne das war die Meta-Zeile allein 51 px hoch. */
+  .zz-meta { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  /* ⚠️ Die 220 px der Grundregel liegen bei 375 px EXAKT auf der Umbruchgrenze
+     (259 px verfügbar, Nummer 28 + Abstand 11 + 220 = 259) -- gemessen stand die
+     Nummer dadurch allein in einer eigenen Zeile und die Kriteriumszeile war
+     125 statt 93 px hoch, bei 29 Kriterien also fast 1000 px umsonst. */
+  .zz-haupt { flex:1 1 140px; }
+}
+
+@media (max-width: 640px) {
+  .zert-zeile { align-items:flex-start; }
+  .zz-rechts { width:100%; justify-content:flex-start; }
+  .zert-aufgabe-row { align-items:flex-start; }
+}

@@ -28,6 +28,57 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.1",
+    groups: [
+      {
+        title: "Klubzertifizierung",
+        items: [
+          "Neuer Reiter „Zertifizierung“ mit allen 78 Kriterien des Verbandes: 29 Basiskriterien, die alle erfüllt sein müssen, und 49 Zusatzkriterien. Beide Listen sind nach den drei Bereichen Spielbetrieb, Organisation & Strategie und Vereinskultur gegliedert und werden zum Aufklappen angeboten.",
+          "Zwei Balken oben zeigen den Stand: wie viele Basiskriterien erfüllt sind und wie viele Zusatzkriterien. Eine Schwelle, ab der die Zertifizierung „geschafft“ wäre, zeigt die App bewusst nicht — die Regel dafür liegt beim Verband.",
+          "Jedes Kriterium steht mit dem Wortlaut des Verbandes da und lässt sich auf „Erfüllt“ setzen. Bei den Zusatzkriterien gibt es zusätzlich „Passt nicht zu uns“ — damit fällt ein Punkt aus der Rechnung, den der Verein nie anbieten will, etwa Walking Football. Bei den Basiskriterien gibt es das nicht, die sind das Pflichtprogramm.",
+          "„In Arbeit“ zeigt die App von selbst an, sobald an einem offenen Kriterium noch eine Aufgabe hängt. Es ist kein Status, den jemand pflegen muss.",
+          "Zu jedem Kriterium lassen sich eine Notiz und beliebige Nachweis-Dateien hinterlegen — wo das Dokument liegt, wer es gemacht hat, wann es beschlossen wurde. Nichts davon ist Pflicht, um ein Kriterium als erfüllt zu setzen.",
+          "Jedes Kriterium kann einem Ressort zugeordnet werden. Über den Filter oben lässt sich dann alles anzeigen, was zu einem Ressort gehört — praktisch für ein Vorstandsgespräch.",
+          "Ein Filter „Nur offene zeigen“ blendet aus, was schon erledigt oder abgelegt ist. Wie viele Kriterien dabei verschwinden, steht daneben."
+        ]
+      },
+      {
+        title: "Aufgaben zu einem Kriterium",
+        items: [
+          "An jedem Kriterium lassen sich Aufgaben anlegen: was zu tun ist, wer es macht und bis wann. Die Frist ist hier freiwillig — manche Schritte haben einen echten Termin, viele nicht.",
+          "Ein Kriterium kann mehrere Aufgaben haben, zum Beispiel „Leitbild schreiben“ und „Leitbild in der Versammlung verabschieden“.",
+          "Abhaken darf die zuständige Person, wer die Aufgabe angelegt hat, und wer die App administriert. Es gibt hier keine Abnahme und kein Ablehnen — ein Haken ist ein Haken.",
+          "⚠️ Diese Aufgaben verschicken bewusst KEINE E-Mail und keine Nachricht aufs Handy. Wer eine Aufgabe verteilt, muss der Person selbst Bescheid sagen; sie findet sie danach im Reiter am Kriterium.",
+          "Das sind absichtlich nicht die normalen Vereinsaufgaben aus derselben App: dort ist eine Frist Pflicht und es gibt eine Abnahme. Ein Kriterium hat aber keinen Fristenlauf — es ist erfüllt oder nicht."
+        ]
+      },
+      {
+        title: "Bericht für den Verbandstermin",
+        items: [
+          "Der Knopf „Bericht drucken“ öffnet eine saubere Seite mit allen 78 Kriterien, ihrem Status, den Notizen und den noch offenen Aufgaben. Daraus lässt sich mit Strg+P ein PDF machen.",
+          "Der Bericht zeigt immer den vollständigen Stand, nicht die gerade gefilterte Ansicht — ein gefilterter Ausdruck würde beim Termin täuschen.",
+          "Wie beim CSV-Export der Aufgaben steht der Bericht ab dem Bearbeiten-Recht zur Verfügung."
+        ]
+      },
+      {
+        title: "Wer darf was in der Zertifizierung",
+        items: [
+          "Den Status eines Kriteriums setzt nur, wer die App administriert. „Erfüllt“ ist die Aussage, die der Verein dem Verband gegenüber macht — die soll nicht jeder setzen können.",
+          "Notiz, Nachweise, Ressort-Zuordnung und Aufgaben pflegt jeder mit Bearbeiten-Recht.",
+          "Als zuständige Person für eine Aufgabe kommen nur Leute in Frage, die Zugang zu dieser App haben. Wer sie nicht sieht, würde von seiner Aufgabe nie erfahren und könnte sie auch nicht abhaken.",
+          "Jede Änderung am Status und an der Ressort-Zuordnung wird am Kriterium mit Zeitpunkt und Person festgehalten."
+        ]
+      },
+      {
+        title: "Woher die Liste kommt",
+        items: [
+          "Die 78 Kriterien stammen aus den beiden Anhängen der Clubberatung vom 28. April 2026. Sie stehen fest in der App und sind nicht änderbar — es ist eine Liste des Verbandes, kein Vereinsinhalt.",
+          "Ändert der Verband etwas, wird die Liste in der App nachgezogen. Der bisherige Bearbeitungsstand bleibt dabei erhalten."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.0",
     groups: [
       {

@@ -388,6 +388,9 @@ function renderAll() {
   renderAlle();
   renderRessorts();
   if (canAdmin()) renderVerwaltung();
+  // Nur wenn der Tab schon einmal geöffnet war — sonst würde eine Änderung an den
+  // Aufgaben eine Zertifizierungs-Ansicht ohne Daten zeichnen.
+  if (zertGeladen) renderZert();
   renderInfo();
   applyRechteSichtbarkeit();
 }
@@ -412,6 +415,7 @@ function applyRechteSichtbarkeit() {
   document.querySelectorAll(".editor-only").forEach((el) => el.classList.toggle("hidden", !canEdit()));
   document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !canAdmin()));
   document.getElementById("export-gesperrt").classList.toggle("hidden", canEdit());
+  document.getElementById("zert-druck-gesperrt").classList.toggle("hidden", canEdit());
   // Zuweisen hängt nicht am Bearbeiten-Recht allein, sondern an einer Ressort-Rolle.
   const btn = document.getElementById("btn-zuweisen-oeffnen");
   if (btn && !btn.classList.contains("hidden")) btn.classList.toggle("hidden", !darfIrgendwemZuweisen());
@@ -423,6 +427,10 @@ function switchTab(tab) {
   aktuellerTab = tab;
   document.querySelectorAll("nav button[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   document.querySelectorAll(".tab-section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + tab));
+  // Die Zertifizierung liest eine eigene Nextcloud-Datei. Sie wird erst beim ersten
+  // Wechsel in den Tab geholt — beim Seitenstart wäre das ein Roundtrip für jeden,
+  // auch für die Mehrheit, die den Tab nie öffnet.
+  if (tab === "zert") zertTabOeffnen();
 }
 
 // ---------- Detailansicht ----------
@@ -955,6 +963,656 @@ function druckeListe() {
   setTimeout(() => document.body.classList.remove("printing-report"), 500);
 }
 
+// ==========================================================================
+// Klubzertifizierung
+// ==========================================================================
+//
+// Eigener Tab in dieser App (Michel-Entscheidung: kein eigenes Repo). Der Katalog
+// der 78 Kriterien steht fest in `kriterien.js`, der Bearbeitungsstand kommt aus
+// `zertifizierung.json`. Beide werden beim Rendern zusammengeführt — der Katalog
+// führt, die Datei ergänzt.
+//
+// ⚠️ Die Mini-Aufgaben hier sind NICHT die Vereinsaufgaben derselben App. Keine
+// Pflicht-Frist, keine Abnahme, kein Ablehnen, keine Benachrichtigung — bewusst
+// leichter, weil ein Kriterium keinen Fristenlauf hat, sondern erfüllt ist oder
+// nicht. Wer beides zusammenlegt, holt sich die Pflicht-Frist zurück.
+
+let zertStand = {};            // kritId -> {status, notiz, ressortId, nachweise, verlauf, ...}
+let zertAufgaben = [];
+let zertGeladen = false;       // erst beim ersten Wechsel in den Tab geladen
+let zertArt = "basis";         // Umschalter Basis/Zusatz
+let zertOffenKritId = null;    // im Detailfenster geöffnetes Kriterium
+let zertAufgabeId = null;      // in Bearbeitung befindliche Aufgabe ("" = neue)
+let zertAufgabeKritId = null;
+let zertAufKlapp = {};         // bereichId -> offen?
+
+// Der Katalog kennt jedes Kriterium, die Datei nur die, an denen gearbeitet wurde.
+// Ein fehlender Eintrag ist deshalb kein Fehler, sondern der Normalfall „noch nichts
+// angefasst" — und muss dieselbe Form haben wie ein vorhandener, sonst braucht jede
+// Auswertung eine Sonderbehandlung.
+function zertEintrag(kritId) {
+  const e = zertStand[kritId];
+  return {
+    status: (e && e.status) || "offen",
+    notiz: (e && e.notiz) || "",
+    ressortId: (e && e.ressortId) || "",
+    geaendertAm: (e && e.geaendertAm) || "",
+    geaendertVon: (e && e.geaendertVon) || "",
+    nachweise: (e && e.nachweise) || [],
+    verlauf: (e && e.verlauf) || []
+  };
+}
+
+function zertStatusInfo(id) {
+  return ZERT_STATUS.find((s) => s.id === id) || ZERT_STATUS[0];
+}
+
+function zertAufgabenVon(kritId) {
+  return zertAufgaben.filter((a) => a.kritId === kritId);
+}
+
+// „In Arbeit" wird NICHT gespeichert, sondern hier abgeleitet: ein offenes Kriterium
+// mit mindestens einer unerledigten Aufgabe. Ein gespeicherter Zwischenstand müsste
+// von Hand gepflegt werden und würde nach wenigen Wochen der Wahrheit widersprechen.
+function zertInArbeit(kritId) {
+  return zertEintrag(kritId).status === "offen" && zertAufgabenVon(kritId).some((a) => !a.erledigt);
+}
+
+// Eine Zertifizierungs-Aufgabe kann überfällig sein, muss aber keine Frist haben.
+function zertAufgabeUeberfaellig(a) {
+  return !a.erledigt && !!a.faellig && a.faellig < heuteIso();
+}
+
+function zertKriterienDerArt(art) {
+  return ZERT_KRITERIEN.filter((k) => k.art === art);
+}
+
+// ---------- Laden ----------
+
+async function ladeZertDaten() {
+  const body = await ladeZertifizierung();
+  zertStand = (body.kriterien && typeof body.kriterien === "object") ? body.kriterien : {};
+  zertAufgaben = Array.isArray(body.aufgaben) ? body.aufgaben : [];
+  // Namen additiv in die gemeinsame Karte: Ersteller und Empfänger können längst
+  // ausgeschieden sein und stehen dann in keiner Personenliste mehr.
+  if (body.namen && typeof body.namen === "object") {
+    Object.keys(body.namen).forEach((u) => { if (!alleAnzeigeNamen[u]) alleAnzeigeNamen[u] = body.namen[u]; });
+  }
+  zertGeladen = true;
+}
+
+// Wird beim Wechsel in den Tab gerufen. Fehler landen im Statustext statt in einem
+// Dialog: der übrige Tab bleibt benutzbar, und ein alter Worker ohne die Aktion soll
+// nicht wie ein kaputter Tab aussehen.
+async function zertTabOeffnen() {
+  if (zertGeladen) return;
+  try {
+    setStatusText("Lade Zertifizierung…");
+    await ladeZertDaten();
+    setStatusText("");
+    renderZert();
+  } catch (e) {
+    if (e instanceof NotLoggedInError) { zeigeLoginGate(e.message); return; }
+    setStatusText(e && e.message ? e.message : "Zertifizierung nicht ladbar", true);
+  }
+}
+
+// ---------- Rendering ----------
+
+function renderZert() {
+  if (!zertGeladen) return;
+  renderZertFortschritt();
+  renderZertArten();
+  fuelleZertRessortFilter();
+  renderZertBereiche();
+}
+
+// Zwei Balken plus die Aufgabenlage. Bewusst OHNE „geschafft"-Signal: die Schwelle
+// des Verbandes ist nicht bekannt, und eine erfundene Schwelle würde den Stand
+// falsch darstellen (Michel-Entscheidung).
+function renderZertFortschritt() {
+  const basis = zertKriterienDerArt("basis");
+  const zusatz = zertKriterienDerArt("zusatz");
+  const basisErf = basis.filter((k) => zertEintrag(k.id).status === "erfuellt").length;
+  const zusatzErf = zusatz.filter((k) => zertEintrag(k.id).status === "erfuellt").length;
+  // „Passt nicht zu uns" zählt aus dem Nenner heraus — sonst stünde der Balken für
+  // immer bei einem Bruchteil und die Anzeige wäre dauerhaft entmutigend.
+  const zusatzWeg = zusatz.filter((k) => zertEintrag(k.id).status === "nichtrelevant").length;
+  const zusatzNenner = Math.max(1, zusatz.length - zusatzWeg);
+
+  const offeneAufg = zertAufgaben.filter((a) => !a.erledigt).length;
+  const ueberAufg = zertAufgaben.filter(zertAufgabeUeberfaellig).length;
+
+  document.getElementById("zert-summary").innerHTML = `
+    ${zertBalken("Basiskriterien", basisErf, basis.length, "#1e8449",
+      basisErf === basis.length ? "Alle erfüllt." : `${basis.length - basisErf} noch offen — alle müssen erfüllt sein.`)}
+    ${zertBalken("Zusatzkriterien", zusatzErf, zusatzNenner, "#2c6fbb",
+      zusatzWeg ? `${zusatzWeg} als „passt nicht zu uns“ abgelegt.` : "Freiwillig — keins davon ist Pflicht.")}
+    <div class="zf-block">
+      <div class="zf-kopf"><span class="zf-label">Aufgaben</span><span class="zf-zahl">${offeneAufg} offen</span></div>
+      <div class="zf-balken"><span style="width:0%"></span></div>
+      <span class="zf-sub">${ueberAufg ? `<span class="warn">${ueberAufg} über der Frist.</span>` : (offeneAufg ? "Keine über der Frist." : "Nichts offen.")}</span>
+    </div>`;
+}
+
+function zertBalken(label, ist, gesamt, farbe, sub) {
+  const pct = gesamt ? Math.round((ist / gesamt) * 100) : 0;
+  return `
+    <div class="zf-block">
+      <div class="zf-kopf"><span class="zf-label">${escapeHtml(label)}</span><span class="zf-zahl">${ist} von ${gesamt}</span></div>
+      <div class="zf-balken"><span style="width:${pct}%;background:${farbe}"></span></div>
+      <span class="zf-sub">${sub}</span>
+    </div>`;
+}
+
+function renderZertArten() {
+  document.getElementById("zert-arten").innerHTML = ZERT_ARTEN.map((a) => {
+    const liste = zertKriterienDerArt(a.id);
+    const erf = liste.filter((k) => zertEintrag(k.id).status === "erfuellt").length;
+    // Zwei Beschriftungen, je eine sichtbar: unter 560 px steht nur „Basis"/„Zusatz",
+    // sonst brauchte jeder Knopf am Handy eine eigene Zeile (gemessen: 76 statt
+    // 35 px für die Leiste). Gleiches Muster wie `.btn-lang` in der Tools-Übersicht.
+    return `<button type="button" class="zert-art-btn${a.id === zertArt ? " active" : ""}" data-zert-art="${escapeHtml(a.id)}"
+      aria-pressed="${a.id === zertArt}"><span class="za-lang">${escapeHtml(a.label)}</span><span class="za-kurz">${escapeHtml(a.kurz)}</span> <span class="zab-zahl">${erf}/${liste.length}</span></button>`;
+  }).join("");
+}
+
+function fuelleZertRessortFilter() {
+  const sel = document.getElementById("zert-ressort-filter");
+  const alt = sel.value;
+  sel.innerHTML = `<option value="">Alle Ressorts</option>` +
+    ressorts.map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`).join("");
+  sel.value = alt;
+}
+
+function zertGefiltert() {
+  const nurOffen = document.getElementById("zert-nur-offen").checked;
+  const ressortId = document.getElementById("zert-ressort-filter").value;
+  return zertKriterienDerArt(zertArt).filter((k) => {
+    const e = zertEintrag(k.id);
+    if (nurOffen && e.status !== "offen") return false;
+    if (ressortId && e.ressortId !== ressortId) return false;
+    return true;
+  });
+}
+
+function renderZertBereiche() {
+  const treffer = zertGefiltert();
+  const alle = zertKriterienDerArt(zertArt);
+  const el = document.getElementById("zert-bereiche");
+
+  el.innerHTML = ZERT_BEREICHE.map((b) => {
+    const liste = treffer.filter((k) => k.bereich === b.id);
+    if (!liste.length) return "";
+    const imBereich = alle.filter((k) => k.bereich === b.id);
+    const erf = imBereich.filter((k) => zertEintrag(k.id).status === "erfuellt").length;
+    const offen = zertAufKlapp[b.id] !== false;   // Vorgabe: aufgeklappt
+    return `
+      <details class="zert-bereich"${offen ? " open" : ""} data-bereich="${escapeHtml(b.id)}">
+        <summary>
+          <span class="zb-name">${escapeHtml(b.label)}</span>
+          <span class="zb-zahl">${erf} von ${imBereich.length} erfüllt</span>
+        </summary>
+        <div class="zert-liste">${liste.map(zertZeileHtml).join("")}</div>
+      </details>`;
+  }).join("");
+
+  // ⚠️ `toggle` bubbelt nicht, Delegation am Container greift also nicht. Die
+  // Listener werden nach jedem Rendern neu gebunden — das innerHTML oben hat die
+  // alten ohnehin mit weggeräumt.
+  el.querySelectorAll("details.zert-bereich").forEach((d) => {
+    d.addEventListener("toggle", () => { zertAufKlapp[d.dataset.bereich] = d.open; });
+  });
+
+  const versteckt = alle.length - treffer.length;
+  document.getElementById("zert-count").textContent =
+    `${treffer.length} von ${alle.length}` + (versteckt ? ` · ${versteckt} ausgeblendet` : "");
+  document.getElementById("zert-empty").classList.toggle("hidden", treffer.length > 0);
+}
+
+function zertZeileHtml(k) {
+  const e = zertEintrag(k.id);
+  const st = zertStatusInfo(e.status);
+  const aufg = zertAufgabenVon(k.id);
+  const offeneAufg = aufg.filter((a) => !a.erledigt).length;
+  const ueber = aufg.some(zertAufgabeUeberfaellig);
+  const r = e.ressortId ? ressortVon(e.ressortId) : null;
+  const arbeit = zertInArbeit(k.id);
+
+  const meta = [];
+  if (r) meta.push(escapeHtml(r.name));
+  if (offeneAufg) meta.push(`${offeneAufg} offene ${offeneAufg === 1 ? "Aufgabe" : "Aufgaben"}`);
+  if (e.nachweise.length) meta.push(`📎 ${e.nachweise.length}`);
+  if (e.notiz) meta.push("📝 Notiz");
+
+  return `
+    <button class="zert-zeile${ueber ? " ueberfaellig" : ""}" type="button" data-krit="${escapeHtml(k.id)}">
+      <span class="zz-nr">${escapeHtml(k.nummer)}</span>
+      <span class="zz-haupt">
+        <span class="zz-name">${escapeHtml(k.name)}</span>
+        <span class="zz-meta">${meta.length ? meta.join(" · ") : escapeHtml(k.text.slice(0, 90) + (k.text.length > 90 ? "…" : ""))}</span>
+      </span>
+      <span class="zz-rechts">
+        ${arbeit ? `<span class="zz-arbeit">in Arbeit</span>` : ""}
+        <span class="zz-status" style="background:${st.farbe}">${escapeHtml(st.label)}</span>
+      </span>
+    </button>`;
+}
+
+// ---------- Kriterium im Detail ----------
+
+function oeffneZertKriterium(kritId) {
+  const k = ZERT_KRITERIEN_MAP[kritId];
+  if (!k) return;
+  zertOffenKritId = kritId;
+  const e = zertEintrag(kritId);
+  const st = zertStatusInfo(e.status);
+  const bereich = ZERT_BEREICHE.find((b) => b.id === k.bereich);
+  const artInfo = ZERT_ARTEN.find((a) => a.id === k.art);
+  const aufg = zertAufgabenVon(kritId);
+
+  document.getElementById("zert-modal-titel").innerHTML =
+    `${escapeHtml(k.nummer)} · ${escapeHtml(k.name)} <span class="zz-status" style="background:${st.farbe}">${escapeHtml(st.label)}</span>`;
+
+  // Status setzen darf nur Administrieren. „Passt nicht zu uns" gibt es nur bei
+  // Zusatzkriterien — die 29 Basiskriterien sind das Pflichtprogramm. Der Worker
+  // prüft beides noch einmal; hier wird es nur nicht angeboten.
+  const statusKnoepfe = ZERT_STATUS
+    .filter((s) => !ZERT_STATUS_NUR_ZUSATZ.includes(s.id) || k.art === "zusatz")
+    .map((s) => `<button type="button" class="btn small ${s.id === e.status ? "" : "secondary"}" data-zert-status="${escapeHtml(s.id)}"
+        ${s.id === e.status ? "disabled" : ""}>${escapeHtml(s.label)}</button>`).join("");
+
+  document.getElementById("zert-modal-body").innerHTML = `
+    <div class="detail-kopf">
+      <div><label>Liste</label><span>${escapeHtml(artInfo ? artInfo.label : k.art)}</span></div>
+      <div><label>Bereich</label><span>${escapeHtml(bereich ? bereich.label : k.bereich)}</span></div>
+      <div><label>Ressort</label><span>${e.ressortId && ressortVon(e.ressortId) ? escapeHtml(ressortVon(e.ressortId).name) : "—"}</span></div>
+      <div><label>Zuletzt geändert</label><span>${e.geaendertAm ? escapeHtml(zeitLesbar(e.geaendertAm) + " · " + nameVon(e.geaendertVon)) : "—"}</span></div>
+    </div>
+
+    <div class="detail-block">
+      <h4>Wortlaut des Verbandes</h4>
+      <p class="detail-text zert-wortlaut">${escapeHtml(k.text)}</p>
+    </div>
+
+    <div class="detail-block">
+      <h4>Status</h4>
+      ${canAdmin()
+        ? `<div class="btn-row zert-status-row">${statusKnoepfe}</div>
+           ${k.art === "basis" ? `<p class="muted" style="margin-top:8px;">Basiskriterien müssen erfüllt werden — „passt nicht zu uns“ gibt es hier nicht.</p>` : ""}`
+        : `<p class="muted">Den Status setzt, wer diese App administriert. Notiz, Nachweise und Aufgaben kannst du trotzdem pflegen.</p>`}
+    </div>
+
+    ${canEdit() ? `
+      <div class="detail-block">
+        <h4>Notiz und Zuordnung</h4>
+        <div class="form-grid">
+          <div class="form-field wide">
+            <label>Notiz — wo steht das, wer hat es gemacht, wann</label>
+            <textarea id="zn-notiz" rows="3" maxlength="4000" placeholder="z. B. Leitbild am 12.03.2026 in der Mitgliederversammlung verabschiedet, Protokoll in der Nextcloud">${escapeHtml(e.notiz)}</textarea>
+          </div>
+          <div class="form-field">
+            <label>Ressort (freiwillig)</label>
+            <select id="zn-ressort">
+              <option value="">— keins —</option>
+              ${ressorts.map((r) => `<option value="${escapeHtml(r.id)}"${r.id === e.ressortId ? " selected" : ""}>${escapeHtml(r.name)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <button class="btn small" id="zn-speichern">Notiz speichern</button>
+      </div>
+    ` : (e.notiz ? `
+      <div class="detail-block">
+        <h4>Notiz</h4>
+        <p class="detail-text">${escapeHtml(e.notiz).replace(/\n/g, "<br>")}</p>
+      </div>` : "")}
+
+    <div class="detail-block">
+      <h4>Nachweise</h4>
+      <div class="anhang-liste">
+        ${e.nachweise.length ? e.nachweise.map((f) => `
+          <div class="anhang-row">
+            <button class="anhang-name" type="button" data-zert-datei="${escapeHtml(f.fileId)}">📎 ${escapeHtml(f.name)}</button>
+            <span class="muted">${escapeHtml(nameVon(f.von))} · ${escapeHtml(zeitLesbar(f.hochgeladenAm))}</span>
+            ${canEdit() && (f.von === currentUser.username || canAdmin()) ? `<button class="btn tiny danger" data-zert-datei-del="${escapeHtml(f.fileId)}">Entfernen</button>` : ""}
+          </div>`).join("") : `<p class="muted">Kein Nachweis hinterlegt.</p>`}
+      </div>
+      ${canEdit() ? `
+        <div class="anhang-upload">
+          <input type="file" id="zn-datei" />
+          <button class="btn small secondary" id="zn-datei-hoch">Nachweis hochladen</button>
+          <span class="muted">höchstens ${ZERT_MAX_NOTIZ_MB} MB · nicht Pflicht für „erfüllt“</span>
+        </div>` : ""}
+    </div>
+
+    <div class="detail-block">
+      <h4>Aufgaben zu diesem Kriterium</h4>
+      <div class="zert-aufgaben">
+        ${aufg.length ? aufg.map(zertAufgabeZeileHtml).join("") : `<p class="muted">Keine Aufgabe angelegt.</p>`}
+      </div>
+      ${canEdit() ? `<button class="btn small secondary" id="zn-aufgabe-neu" style="margin-top:10px;">+ Aufgabe anlegen</button>` : ""}
+    </div>
+
+    <div class="detail-block">
+      <h4>Verlauf</h4>
+      <div class="verlauf-liste">
+        ${e.verlauf.length ? e.verlauf.slice().reverse().map((v) => `
+          <div class="verlauf-row">
+            <span class="v-zeit">${escapeHtml(zeitLesbar(v.am))}</span>
+            <span class="v-text">${escapeHtml(zertVerlaufText(v))}</span>
+            <span class="v-wer">${escapeHtml(nameVon(v.von))}</span>
+          </div>`).join("") : `<p class="muted">Noch nichts geändert.</p>`}
+      </div>
+    </div>`;
+
+  document.getElementById("zert-modal").classList.remove("hidden");
+}
+
+function zertVerlaufText(v) {
+  if (v.was === "status") return `Status: ${zertStatusInfo(v.alt).label} → ${zertStatusInfo(v.neu).label}`;
+  if (v.was === "ressort") {
+    const nam = (id) => (id && ressortVon(id) ? ressortVon(id).name : "—");
+    return `Ressort: ${nam(v.alt)} → ${nam(v.neu)}`;
+  }
+  return `${v.was}: „${v.alt || "—"}" → „${v.neu || "—"}"`;
+}
+
+function zertAufgabeZeileHtml(a) {
+  const ueber = zertAufgabeUeberfaellig(a);
+  // ⚠️ Das Kästchen ist bei fehlendem Recht ausgegraut, nicht `disabled` — ein
+  // gesperrtes Kästchen schluckt den Klick kommentarlos. Der Handler weist ab und
+  // sagt, warum (gleiche Linie wie in der Tools-Übersicht).
+  const darf = canEdit() && (a.empfaenger === currentUser.username || a.erstelltVon === currentUser.username || canAdmin());
+  return `
+    <div class="zert-aufgabe-row${a.erledigt ? " erledigt" : ""}${ueber ? " ueberfaellig" : ""}">
+      <label class="za-haken${darf ? "" : " gesperrt"}">
+        <input type="checkbox" data-zert-haken="${escapeHtml(a.id)}"${a.erledigt ? " checked" : ""} />
+        <span class="za-titel">${escapeHtml(a.titel)}</span>
+      </label>
+      <span class="za-meta">
+        ${escapeHtml(nameVon(a.empfaenger))}
+        ${a.faellig ? ` · <span class="${ueber ? "warn" : ""}">bis ${escapeHtml(datumLesbar(a.faellig))}</span>` : ""}
+        ${a.erledigt && a.erledigtAm ? ` · erledigt ${escapeHtml(zeitLesbar(a.erledigtAm))}` : ""}
+      </span>
+      ${canEdit() && (a.erstelltVon === currentUser.username || canAdmin())
+        ? `<button class="btn tiny secondary" data-zert-aufgabe-edit="${escapeHtml(a.id)}">Ändern</button>` : ""}
+    </div>`;
+}
+
+function schliesseZertModal() {
+  document.getElementById("zert-modal").classList.add("hidden");
+  zertOffenKritId = null;
+}
+
+// Nach jeder Änderung neu laden und das offene Fenster neu zeichnen — dieser Client
+// hält keinen eigenen Bestand, den er zurückschreiben könnte.
+async function zertNeuZeichnen() {
+  await ladeZertDaten();
+  renderZert();
+  if (zertOffenKritId) oeffneZertKriterium(zertOffenKritId);
+}
+
+async function zertStatusSetzen(status) {
+  if (!zertOffenKritId) return;
+  try {
+    await setzeZertStatus(zertOffenKritId, status);
+    setStatusText("Gespeichert");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+async function zertNotizSpeichern() {
+  if (!zertOffenKritId) return;
+  const notiz = document.getElementById("zn-notiz").value.trim();
+  const ressortId = document.getElementById("zn-ressort").value;
+  try {
+    await speichereZertNotiz(zertOffenKritId, notiz, ressortId);
+    setStatusText("Gespeichert");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+// ---------- Nachweise ----------
+
+async function zertNachweisHoch() {
+  const input = document.getElementById("zn-datei");
+  const datei = input.files && input.files[0];
+  if (!datei) { alert("Bitte zuerst eine Datei auswählen."); return; }
+  if (datei.size > ZERT_MAX_NOTIZ_MB * 1024 * 1024) {
+    alert(`Die Datei ist größer als ${ZERT_MAX_NOTIZ_MB} MB.`);
+    return;
+  }
+  try {
+    setStatusText("Lade hoch…");
+    const dataUrl = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = () => rej(new Error("Datei konnte nicht gelesen werden"));
+      fr.readAsDataURL(datei);
+    });
+    await ladeZertNachweisHoch(zertOffenKritId, datei.name, dataUrl);
+    input.value = "";
+    setStatusText("Hochgeladen");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+async function zertNachweisOeffnen(fileId) {
+  try {
+    const e = zertEintrag(zertOffenKritId);
+    const meta = e.nachweise.find((f) => f.fileId === fileId);
+    setStatusText("Lade Nachweis…");
+    const blob = await holeZertNachweis(zertOffenKritId, fileId);
+    // Safari blockt window.open nach einem await lautlos — deshalb ein
+    // synthetischer Klick auf einen Download-Link statt eines späten open().
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = (meta && meta.name) || "nachweis";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setStatusText("");
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) { zeigeFehler(e); }
+}
+
+async function zertNachweisEntfernen(fileId) {
+  if (!confirm("Diesen Nachweis entfernen?")) return;
+  try {
+    await loescheZertNachweis(zertOffenKritId, fileId);
+    setStatusText("Entfernt");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+// ---------- Mini-Aufgaben ----------
+
+function oeffneZertAufgabeModal(kritId, aufgabeId) {
+  const k = ZERT_KRITERIEN_MAP[kritId];
+  if (!k) return;
+  zertAufgabeKritId = kritId;
+  zertAufgabeId = aufgabeId || "";
+  const a = aufgabeId ? zertAufgaben.find((x) => x.id === aufgabeId) : null;
+
+  document.getElementById("zert-aufgabe-titel").textContent = a ? "Aufgabe ändern" : "Aufgabe zum Kriterium";
+  document.getElementById("zert-aufgabe-kriterium").textContent = `${k.nummer} · ${k.name}`;
+  document.getElementById("za-titel").value = a ? a.titel : "";
+  document.getElementById("za-faellig").value = a ? (a.faellig || "") : "";
+
+  // Nur Personen, die diese App bearbeiten dürfen — wer sie nicht sieht, erfährt nie
+  // von seiner Aufgabe und könnte sie auch nicht abhaken. Der Worker weist andere ab.
+  const gewaehlt = a ? a.empfaenger : (currentUser ? currentUser.username : "");
+  document.getElementById("za-empfaenger").innerHTML = personen.length
+    ? personen.map((p) => `<option value="${escapeHtml(p.username)}"${p.username === gewaehlt ? " selected" : ""}>${escapeHtml(p.displayName)}</option>`).join("")
+    : `<option value="">— keine Person verfügbar —</option>`;
+
+  document.getElementById("za-loeschen").classList.toggle("hidden",
+    !(a && (a.erstelltVon === currentUser.username || canAdmin())));
+  document.getElementById("zert-aufgabe-modal").classList.remove("hidden");
+}
+
+function schliesseZertAufgabeModal() {
+  document.getElementById("zert-aufgabe-modal").classList.add("hidden");
+  zertAufgabeId = null;
+  zertAufgabeKritId = null;
+}
+
+async function speichereZertAufgabe() {
+  const titel = document.getElementById("za-titel").value.trim();
+  const empfaenger = document.getElementById("za-empfaenger").value;
+  const faellig = document.getElementById("za-faellig").value;
+  if (!titel) { alert("Bitte angeben, was zu tun ist."); return; }
+  if (!empfaenger) { alert("Bitte eine Person auswählen."); return; }
+  try {
+    if (zertAufgabeId) await aendereZertAufgabe(zertAufgabeId, titel, empfaenger, faellig);
+    else await legeZertAufgabeAn(zertAufgabeKritId, titel, empfaenger, faellig);
+    schliesseZertAufgabeModal();
+    setStatusText("Gespeichert");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+async function loescheZertAufgabeJetzt() {
+  if (!zertAufgabeId) return;
+  if (!confirm("Diese Aufgabe löschen?")) return;
+  try {
+    await loescheZertAufgabe(zertAufgabeId);
+    schliesseZertAufgabeModal();
+    setStatusText("Gelöscht");
+    await zertNeuZeichnen();
+  } catch (e) { zeigeFehler(e); }
+}
+
+async function zertAufgabeHaken(id, kaestchen) {
+  const a = zertAufgaben.find((x) => x.id === id);
+  if (!a) return;
+  const darf = canEdit() && (a.empfaenger === currentUser.username || a.erstelltVon === currentUser.username || canAdmin());
+  if (!darf) {
+    kaestchen.checked = !!a.erledigt;
+    alert("Diese Aufgabe gehört jemand anderem. Abhaken darf sie die zuständige Person, wer sie angelegt hat, oder wer die App administriert.");
+    return;
+  }
+  try {
+    await setzeZertAufgabeErledigt(id, kaestchen.checked);
+    setStatusText(kaestchen.checked ? "Abgehakt" : "Wieder offen");
+    await zertNeuZeichnen();
+  } catch (e) {
+    kaestchen.checked = !!a.erledigt;
+    zeigeFehler(e);
+  }
+}
+
+// ---------- Bericht drucken ----------
+
+// Alle 78 Kriterien, nach Liste und Bereich, mit Status, Notiz und offenen Aufgaben.
+// Bewusst NICHT die gefilterte Ansicht: der Bericht ist der Nachweis über den
+// Gesamtstand, ein gefilterter Ausdruck würde beim Verbandstermin täuschen.
+function druckeZertBericht() {
+  const teile = ZERT_ARTEN.map((art) => {
+    const liste = zertKriterienDerArt(art.id);
+    const erf = liste.filter((k) => zertEintrag(k.id).status === "erfuellt").length;
+    const weg = liste.filter((k) => zertEintrag(k.id).status === "nichtrelevant").length;
+
+    const bereiche = ZERT_BEREICHE.map((b) => {
+      const imBereich = liste.filter((k) => k.bereich === b.id);
+      if (!imBereich.length) return "";
+      const rows = imBereich.map((k) => {
+        const e = zertEintrag(k.id);
+        const offeneAufg = zertAufgabenVon(k.id).filter((a) => !a.erledigt);
+        const r = e.ressortId ? ressortVon(e.ressortId) : null;
+        const zusatz = [];
+        if (e.notiz) zusatz.push(escapeHtml(e.notiz));
+        if (offeneAufg.length) {
+          zusatz.push("Offen: " + offeneAufg.map((a) =>
+            escapeHtml(a.titel + " (" + nameVon(a.empfaenger) + (a.faellig ? ", bis " + datumLesbar(a.faellig) : "") + ")")).join("; "));
+        }
+        return `<tr>
+          <td>${escapeHtml(k.nummer)}</td>
+          <td>${escapeHtml(k.name)}${zusatz.length ? `<br><span class="zp-zusatz">${zusatz.join("<br>")}</span>` : ""}</td>
+          <td>${escapeHtml(r ? r.name : "")}</td>
+          <td>${escapeHtml(zertStatusInfo(e.status).label)}</td>
+          <td>${escapeHtml(e.geaendertAm ? zeitLesbar(e.geaendertAm).split(",")[0] : "")}</td>
+        </tr>`;
+      }).join("");
+      return `
+        <div class="print-team-block">
+          <h2>${escapeHtml(b.label)}</h2>
+          <table class="print-table">
+            <thead><tr><th>Nr.</th><th>Kriterium</th><th>Ressort</th><th>Status</th><th>Stand</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join("");
+
+    return `
+      <h1 style="margin-top:18px;">${escapeHtml(art.label)}</h1>
+      <p class="print-meta">${erf} von ${liste.length} erfüllt${weg ? ` · ${weg} als „passt nicht zu uns“ abgelegt` : ""}</p>
+      ${bereiche}`;
+  }).join("");
+
+  document.getElementById("print-content").innerHTML = `
+    <h1>Klubzertifizierung — Stand ${escapeHtml(datumLesbar(heuteIso()))}</h1>
+    <p class="print-meta">1. SC 1911 Heilbad Heiligenstadt · ${ZERT_KRITERIEN.length} Kriterien des Verbandes</p>
+    ${teile}`;
+  document.body.classList.add("printing-report");
+  window.print();
+  setTimeout(() => document.body.classList.remove("printing-report"), 500);
+}
+
+// ---------- Ereignisse des Tabs ----------
+
+function setupZertListeners() {
+  document.getElementById("zert-arten").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-zert-art]");
+    if (!btn) return;
+    zertArt = btn.dataset.zertArt;
+    renderZertArten();
+    renderZertBereiche();
+  });
+
+  ["zert-nur-offen", "zert-ressort-filter"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", renderZertBereiche);
+  });
+
+  document.getElementById("zert-bereiche").addEventListener("click", (e) => {
+    const zeile = e.target.closest("[data-krit]");
+    if (zeile) oeffneZertKriterium(zeile.dataset.krit);
+  });
+
+  document.getElementById("btn-zert-druck").addEventListener("click", druckeZertBericht);
+
+  document.getElementById("zert-close").addEventListener("click", schliesseZertModal);
+  document.getElementById("zert-schliessen").addEventListener("click", schliesseZertModal);
+
+  document.getElementById("zert-modal-body").addEventListener("click", (e) => {
+    const st = e.target.closest("[data-zert-status]");
+    if (st) { zertStatusSetzen(st.dataset.zertStatus); return; }
+    if (e.target.closest("#zn-speichern")) { zertNotizSpeichern(); return; }
+    if (e.target.closest("#zn-datei-hoch")) { zertNachweisHoch(); return; }
+    if (e.target.closest("#zn-aufgabe-neu")) { oeffneZertAufgabeModal(zertOffenKritId, ""); return; }
+    const dat = e.target.closest("[data-zert-datei]");
+    if (dat) { zertNachweisOeffnen(dat.dataset.zertDatei); return; }
+    const del = e.target.closest("[data-zert-datei-del]");
+    if (del) { zertNachweisEntfernen(del.dataset.zertDateiDel); return; }
+    const edit = e.target.closest("[data-zert-aufgabe-edit]");
+    if (edit) { oeffneZertAufgabeModal(zertOffenKritId, edit.dataset.zertAufgabeEdit); return; }
+  });
+
+  // Das Häkchen läuft über `change`, nicht über den Klick-Handler darüber: nur so
+  // steht der neue Zustand des Kästchens schon fest und lässt sich bei fehlendem
+  // Recht oder einem Serverfehler zurückdrehen.
+  document.getElementById("zert-modal-body").addEventListener("change", (e) => {
+    const box = e.target.closest("[data-zert-haken]");
+    if (box) zertAufgabeHaken(box.dataset.zertHaken, box);
+  });
+
+  document.getElementById("zert-aufgabe-close").addEventListener("click", schliesseZertAufgabeModal);
+  document.getElementById("za-abbrechen").addEventListener("click", (e) => { e.preventDefault(); schliesseZertAufgabeModal(); });
+  document.getElementById("za-speichern").addEventListener("click", (e) => { e.preventDefault(); speichereZertAufgabe(); });
+  document.getElementById("za-loeschen").addEventListener("click", (e) => { e.preventDefault(); loescheZertAufgabeJetzt(); });
+}
+
 // ---------- Ereignisse ----------
 
 function setupListeners() {
@@ -1017,12 +1675,23 @@ function setupListeners() {
   document.getElementById("rf-loeschen").addEventListener("click", (e) => { e.preventDefault(); loescheRessortForm(); });
   document.getElementById("btn-uebergabe").addEventListener("click", starteUebergabe);
 
+  setupZertListeners();
+
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    ["ressort-modal", "zuweisen-modal", "detail-modal"].some((id) => {
+    // Reihenfolge = Staffelung: das oberste offene Fenster schließt zuerst. Das
+    // Aufgaben-Fenster der Zertifizierung liegt über dem Kriterium-Fenster und muss
+    // deshalb VOR ihm stehen — sonst schließt Escape das darunterliegende.
+    ["zert-aufgabe-modal", "zert-modal", "ressort-modal", "zuweisen-modal", "detail-modal"].some((id) => {
       const el = document.getElementById(id);
-      if (!el.classList.contains("hidden")) { el.classList.add("hidden"); if (id === "detail-modal") offeneDetailId = null; return true; }
-      return false;
+      if (el.classList.contains("hidden")) return false;
+      el.classList.add("hidden");
+      // Den Merker mitzuräumen ist Pflicht, nicht Kosmetik: bliebe er stehen,
+      // schriebe der nächste Speichern-Klick in ein Fenster, das gar nicht offen ist.
+      if (id === "detail-modal") offeneDetailId = null;
+      if (id === "zert-modal") zertOffenKritId = null;
+      if (id === "zert-aufgabe-modal") { zertAufgabeId = null; zertAufgabeKritId = null; }
+      return true;
     });
   });
 }

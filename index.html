@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>🗂️ Vereinsaufgaben</title>
 <meta name="theme-color" content="#1a56a0" />
-<link rel="stylesheet" href="style.css?v=1.4" />
+<link rel="stylesheet" href="style.css?v=1.7" />
 </head>
 <body>
 
@@ -37,6 +37,7 @@
       <button data-tab="meine">Meine Aufgaben <span class="nav-badge hidden" id="nav-badge-meine"></span></button>
       <button data-tab="alle">Alle Aufgaben</button>
       <button data-tab="ressorts">Ressorts</button>
+      <button data-tab="zert">Zertifizierung</button>
       <div class="nav-right">
         <button data-tab="verwaltung" class="admin-only hidden">Verwaltung</button>
         <button data-tab="info">Info</button>
@@ -111,6 +112,38 @@
           <p class="muted" style="margin-bottom:14px;">Wer welches Ressort verantwortet, wer vertritt und wer mitarbeitet. Angelegt und gepflegt wird das in der Verwaltung.</p>
           <div class="ressort-list" id="ressort-list"></div>
           <div class="empty-state hidden" id="ressort-empty">Es ist noch kein Ressort angelegt.</div>
+        </div>
+      </section>
+
+      <!-- ---------- Klubzertifizierung ----------
+           Ein Tab, innen umschaltbar zwischen Basis und Zusatz. Bewusst KEIN
+           zweiter Tab je Liste: die Nav-Leiste hat schon sechs Knöpfe, ein
+           siebter reicht — zwei machen sie am Handy unbedienbar. -->
+      <section class="tab-section" id="tab-zert">
+        <div class="summary-cards" id="zert-summary"></div>
+
+        <div class="card">
+          <h2>Kriterien des Verbandes</h2>
+          <p class="muted" style="margin-bottom:14px;">Die Liste kommt vom Verband und ist hier nicht änderbar. Alle Basiskriterien müssen erfüllt sein; bei den Zusatzkriterien darf ein Punkt auch als „passt nicht zu uns“ abgelegt werden.</p>
+
+          <div class="zert-leiste">
+            <div class="zert-arten" id="zert-arten"></div>
+            <label class="zert-schalter"><input type="checkbox" id="zert-nur-offen" /> Nur offene zeigen</label>
+            <select id="zert-ressort-filter"><option value="">Alle Ressorts</option></select>
+            <span class="filter-count" id="zert-count"></span>
+          </div>
+
+          <div id="zert-bereiche"></div>
+          <div class="empty-state hidden" id="zert-empty">Kein Kriterium passt zu diesem Filter.</div>
+        </div>
+
+        <div class="card">
+          <h2>Bericht</h2>
+          <p class="muted" style="margin-bottom:14px;">Alle 78 Kriterien nach Bereich, mit Status, Notiz und offenen Aufgaben — zum Ausdrucken oder als PDF für den Verbandstermin.</p>
+          <div class="btn-row editor-only hidden" style="justify-content:flex-start;">
+            <button type="button" class="btn secondary" id="btn-zert-druck">🖨 Bericht drucken</button>
+          </div>
+          <p class="muted hidden" id="zert-druck-gesperrt">Der Bericht steht ab Bearbeiten-Recht zur Verfügung.</p>
         </div>
       </section>
 
@@ -281,8 +314,54 @@
     </div>
   </div>
 
-  <script src="config.js?v=1.6"></script>
-  <script src="db.js?v=1.1"></script>
-  <script src="app.js?v=1.5"></script>
+  <!-- ---------- Kriterium im Detail ---------- -->
+  <div class="modal-overlay hidden" id="zert-modal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2 id="zert-modal-titel">Kriterium</h2>
+        <button class="modal-close" id="zert-close" aria-label="Schließen">×</button>
+      </div>
+      <div class="modal-body" id="zert-modal-body"></div>
+      <div class="modal-footer">
+        <div></div>
+        <div class="btn-row footer-rechts">
+          <button class="btn secondary" id="zert-schliessen">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- Aufgabe zu einem Kriterium ---------- -->
+  <div class="modal-overlay hidden" id="zert-aufgabe-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="zert-aufgabe-titel">Aufgabe zum Kriterium</h2>
+        <button class="modal-close" id="zert-aufgabe-close" aria-label="Schließen">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted" id="zert-aufgabe-kriterium" style="margin-bottom:14px;"></p>
+        <form id="zert-aufgabe-form">
+          <div class="form-grid">
+            <div class="form-field wide"><label>Was ist zu tun? *</label><input type="text" id="za-titel" maxlength="200" placeholder="z. B. Leitbild schreiben und in der Versammlung verabschieden" /></div>
+            <div class="form-field"><label>Wer? *</label><select id="za-empfaenger"></select></div>
+            <div class="form-field"><label>Bis wann? (freiwillig)</label><input type="date" id="za-faellig" /></div>
+          </div>
+          <p class="muted">Es geht keine E-Mail und keine Nachricht aufs Handy raus — sag der Person also Bescheid. Sie findet die Aufgabe in diesem Tab am Kriterium.</p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn danger hidden" id="za-loeschen">Löschen</button>
+        <div class="btn-row footer-rechts">
+          <button class="btn secondary" id="za-abbrechen">Abbrechen</button>
+          <button class="btn success" id="za-speichern">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js?v=1.7"></script>
+  <script src="kriterien.js?v=1.0"></script>
+  <script src="db.js?v=1.2"></script>
+  <script src="app.js?v=1.7"></script>
 </body>
 </html>

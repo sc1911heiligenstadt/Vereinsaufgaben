@@ -155,6 +155,80 @@ async function uebergebeAufgaben(vonUser, aufUser) {
   return gatewayRequest({ action: "vereinsaufgaben-uebergabe", app: GATEWAY_APP_ID, vonUser, aufUser });
 }
 
+// ---------- Klubzertifizierung ----------
+//
+// Eigene Datei (`zertifizierung.json`) und eigene Aktionen, obwohl es derselbe Tab
+// derselben App ist. Grund für die getrennte Datei: die Aufgaben werden im Alltag
+// laufend geschrieben, der Zertifizierungsstand selten — ein If-Match-Konflikt beim
+// Abhaken soll nicht den Kriterienstand zurückwerfen.
+//
+// Der Kriterienkatalog selbst steht in `kriterien.js` und ist dem Worker unbekannt.
+// Der prüft nur die FORM der Kriterium-Id und leitet aus ihrem Präfix ab, ob es ein
+// Basis- oder Zusatzkriterium ist — eine zweite Kopie der 78 Kriterien im Worker
+// wäre auseinandergelaufen.
+
+// Liefert { kriterien, aufgaben, namen, me }. Wird erst beim ersten Wechsel in den
+// Tab gerufen, nicht beim Seitenstart: es ist ein eigener Nextcloud-Read, und die
+// Mehrheit öffnet den Tab nie.
+async function ladeZertifizierung() {
+  return gatewayRequest({ action: "zertifizierung-load", app: GATEWAY_APP_ID });
+}
+
+// status: "offen" | "erfuellt" | "nichtrelevant" — Letzteres nur bei Zusatzkriterien.
+// Nur mit Administrieren-Recht; der Worker prüft es noch einmal.
+async function setzeZertStatus(kritId, status) {
+  return gatewayRequest({ action: "zertifizierung-status", app: GATEWAY_APP_ID, kritId, status });
+}
+
+// Ein FEHLENDES Feld heißt „unverändert", ein leeres leert. Deshalb werden hier
+// beide immer mitgeschickt — die Maske speichert sie gemeinsam.
+async function speichereZertNotiz(kritId, notiz, ressortId) {
+  return gatewayRequest({ action: "zertifizierung-notiz", app: GATEWAY_APP_ID, kritId, notiz, ressortId });
+}
+
+async function legeZertAufgabeAn(kritId, titel, empfaenger, faellig) {
+  return gatewayRequest({ action: "zertifizierung-aufgabe-anlegen", app: GATEWAY_APP_ID, kritId, titel, empfaenger, faellig });
+}
+
+async function aendereZertAufgabe(id, titel, empfaenger, faellig) {
+  return gatewayRequest({ action: "zertifizierung-aufgabe-aendern", app: GATEWAY_APP_ID, id, titel, empfaenger, faellig });
+}
+
+async function setzeZertAufgabeErledigt(id, erledigt) {
+  return gatewayRequest({ action: "zertifizierung-aufgabe-status", app: GATEWAY_APP_ID, id, erledigt: !!erledigt });
+}
+
+async function loescheZertAufgabe(id) {
+  return gatewayRequest({ action: "zertifizierung-aufgabe-loeschen", app: GATEWAY_APP_ID, id });
+}
+
+async function ladeZertNachweisHoch(kritId, name, dataUrl) {
+  return gatewayRequest({ action: "zertifizierung-datei-put", app: GATEWAY_APP_ID, kritId, name, daten: dataUrl });
+}
+
+// Liefert einen Blob, keine JSON — wie holeAnhang(): der Worker reicht die Bytes
+// durch, statt sie als base64 zu verpacken.
+async function holeZertNachweis(kritId, fileId) {
+  const token = getSessionToken();
+  if (!token) throw new NotLoggedInError();
+  const resp = await fetch(GATEWAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ action: "zertifizierung-datei-get", app: GATEWAY_APP_ID, kritId, fileId })
+  });
+  if (resp.status === 401) throw new NotLoggedInError("Sitzung abgelaufen");
+  if (!resp.ok) {
+    let msg = `Nachweis konnte nicht geladen werden (HTTP ${resp.status})`;
+    try { const b = await resp.json(); if (b && b.error) msg = b.error; } catch (_) { /* kein JSON-Körper */ }
+    throw new Error(msg);
+  }
+  return resp.blob();
+}
+
+async function loescheZertNachweis(kritId, fileId) {
+  return gatewayRequest({ action: "zertifizierung-datei-loeschen", app: GATEWAY_APP_ID, kritId, fileId });
+}
+
 // ---------- Personen ----------
 
 // Empfängerpicker: nur wer diese App bearbeiten darf, kann eine Aufgabe je abhaken.

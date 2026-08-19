@@ -73,6 +73,39 @@ function istAbgeschlossen(a) {
   return STATUS_ABGESCHLOSSEN.includes(a.status);
 }
 
+// Das Dreieck neben der Frist ist ein Handlungshinweis, keine Eigenschaft des
+// Vorgangs: an einer erledigten, abgelehnten oder zurückgezogenen Aufgabe ist
+// nichts mehr dringend. Es stehen zu lassen hieße, eine Warnung zu zeigen, auf
+// die niemand mehr reagieren kann.
+function zeigePrioZeichen(a) {
+  return a.prioritaet === "hoch" && !istAbgeschlossen(a);
+}
+
+// Ein Statusfilter, den sich alle Listen der App teilen. "offen-alle" und
+// "ueberfaellig" sind keine gespeicherten Status, sondern gerechnete Sichten --
+// deshalb steht die Regel hier einmal und nicht in jeder Ansicht neu.
+function passtZuStatusFilter(a, status) {
+  if (!status) return true;                                  // "Alle Status"
+  if (status === "offen-alle") return !istAbgeschlossen(a);
+  if (status === "ueberfaellig") return istUeberfaellig(a);
+  return a.status === status;
+}
+
+// Ausgeblendetes wird beziffert, nicht stillschweigend weggefiltert.
+function filterHinweis(gezeigt, gesamt) {
+  const versteckt = gesamt - gezeigt;
+  return `${gezeigt} von ${gesamt}` + (versteckt ? ` · ${versteckt} ausgeblendet` : "");
+}
+
+// Ein leerer Kasten muss sagen, ob wirklich nichts da ist oder ob der Filter
+// alles weggenommen hat -- sonst sucht man den Fehler in den Daten statt im
+// Filter.
+function setzeLeerText(id, gezeigt, gesamt, textLeer) {
+  const el = document.getElementById(id);
+  el.textContent = gesamt === 0 ? textLeer : "Keine Aufgabe passt zu diesem Filter.";
+  el.classList.toggle("hidden", gezeigt > 0);
+}
+
 // Der Worker liefert vertrauliche Aufgaben ohne Text aus; das Kennzeichen dafür
 // ist das Feld verdeckt. Der Client zeigt dann den Platzhalter — und muss ihn
 // nicht selbst erzeugen, damit gar nicht erst der Eindruck entsteht, hier werde
@@ -187,6 +220,11 @@ function renderUebersicht() {
   personen.forEach((p) => { namen[p.username] = true; });
   aufgaben.forEach((a) => { if (a.empfaenger) namen[a.empfaenger] = true; });
 
+  // Der Filter wirkt nur auf die aufgeklappten Vorgänge. Die drei Zahlen am Kopf
+  // jeder Person bleiben der echte Bestand -- sie sind die Aussage der Übersicht
+  // und dürften sich nicht durch eine Filterwahl kleinrechnen lassen.
+  const status = document.getElementById("uebersicht-filter-status").value;
+
   const zeilen = Object.keys(namen).map((u) => {
     const meine = aufgaben.filter((a) => a.empfaenger === u);
     return {
@@ -194,9 +232,10 @@ function renderUebersicht() {
       offen: meine.filter((a) => !istAbgeschlossen(a)).length,
       ueberfaellig: meine.filter(istUeberfaellig).length,
       erledigt: meine.filter((a) => a.status === "erledigt").length,
-      liste: sortiereAufgaben(meine)
+      gesamt: meine.length,
+      liste: sortiereAufgaben(meine).filter((a) => passtZuStatusFilter(a, status))
     };
-  }).filter((z) => z.liste.length > 0 || personen.some((p) => p.username === z.username));
+  }).filter((z) => z.gesamt > 0 || personen.some((p) => p.username === z.username));
 
   zeilen.sort((a, b) => (b.ueberfaellig - a.ueberfaellig) || (b.offen - a.offen) || nameVon(a.username).localeCompare(nameVon(b.username)));
 
@@ -217,12 +256,16 @@ function renderUebersicht() {
           </span>
         </button>
         <div class="person-body hidden" id="person-body-${escapeHtml(z.username)}">
-          ${z.liste.length ? z.liste.map(aufgabeZeileHtml).join("") : `<p class="muted">Keine Aufgaben.</p>`}
+          ${z.liste.length
+            ? z.liste.map(aufgabeZeileHtml).join("")
+            : `<p class="muted">${z.gesamt ? "Keine Aufgabe passt zu diesem Filter." : "Keine Aufgaben."}</p>`}
         </div>
       </div>`;
   }).join("");
 
   document.getElementById("uebersicht-empty").classList.toggle("hidden", zeilen.length > 0);
+  document.getElementById("uebersicht-filter-count").textContent =
+    filterHinweis(zeilen.reduce((s, z) => s + z.liste.length, 0), aufgaben.length);
 }
 
 function kachel(titel, wert, farbe) {
@@ -249,7 +292,7 @@ function aufgabeZeileHtml(a) {
         </span>
       </span>
       <span class="az-rechts">
-        ${a.prioritaet === "hoch" ? `<span class="az-prio" style="color:${prio.farbe}">▲</span>` : ""}
+        ${zeigePrioZeichen(a) ? `<span class="az-prio" style="color:${prio.farbe}">▲</span>` : ""}
         <span class="az-frist${ueber ? " warn" : ""}">${datumLesbar(a.faellig)}</span>
         <span class="az-status" style="background:${st.farbe}">${escapeHtml(ueber ? "Überfällig" : st.label)}</span>
       </span>
@@ -259,19 +302,27 @@ function aufgabeZeileHtml(a) {
 // ---------- Rendering: Meine Aufgaben ----------
 
 function renderMeine() {
-  const meine = sortiereAufgaben(aufgaben.filter((a) => a.empfaenger === currentUser.username));
-  const vonMir = sortiereAufgaben(aufgaben.filter((a) => a.von === currentUser.username && a.empfaenger !== currentUser.username));
+  const alleMeine = sortiereAufgaben(aufgaben.filter((a) => a.empfaenger === currentUser.username));
+  const alleVonMir = sortiereAufgaben(aufgaben.filter((a) => a.von === currentUser.username && a.empfaenger !== currentUser.username));
+
+  const meine = alleMeine.filter((a) => passtZuStatusFilter(a, document.getElementById("meine-filter-status").value));
+  const vonMir = alleVonMir.filter((a) => passtZuStatusFilter(a, document.getElementById("vonmir-filter-status").value));
 
   document.getElementById("meine-liste").innerHTML = meine.map(aufgabeZeileHtml).join("");
-  document.getElementById("meine-empty").classList.toggle("hidden", meine.length > 0);
-  document.getElementById("vonmir-liste").innerHTML = vonMir.map(aufgabeZeileHtml).join("");
-  document.getElementById("vonmir-empty").classList.toggle("hidden", vonMir.length > 0);
+  document.getElementById("meine-count").textContent = filterHinweis(meine.length, alleMeine.length);
+  setzeLeerText("meine-empty", meine.length, alleMeine.length, "Für dich ist gerade nichts offen.");
 
-  const offeneEigene = meine.filter((a) => !istAbgeschlossen(a)).length;
+  document.getElementById("vonmir-liste").innerHTML = vonMir.map(aufgabeZeileHtml).join("");
+  document.getElementById("vonmir-count").textContent = filterHinweis(vonMir.length, alleVonMir.length);
+  setzeLeerText("vonmir-empty", vonMir.length, alleVonMir.length, "Du hast noch niemandem eine Aufgabe zugewiesen.");
+
+  // Das Badge in der Navigation zählt den echten Bestand, nicht die gefilterte
+  // Sicht -- sonst könnte man die eigene Zahl durch eine Filterwahl kleinrechnen.
+  const offeneEigene = alleMeine.filter((a) => !istAbgeschlossen(a)).length;
   const badge = document.getElementById("nav-badge-meine");
   badge.textContent = offeneEigene || "";
   badge.classList.toggle("hidden", offeneEigene === 0);
-  badge.classList.toggle("warn", meine.some(istUeberfaellig));
+  badge.classList.toggle("warn", alleMeine.some(istUeberfaellig));
 }
 
 // ---------- Rendering: Alle Aufgaben ----------
@@ -285,9 +336,7 @@ function renderAlle() {
   gefilterteAufgaben = sortiereAufgaben(aufgaben.filter((a) => {
     if (person && a.empfaenger !== person) return false;
     if (ressortId && a.ressortId !== ressortId) return false;
-    if (status === "offen-alle" && istAbgeschlossen(a)) return false;
-    if (status === "ueberfaellig" && !istUeberfaellig(a)) return false;
-    if (status && status !== "offen-alle" && status !== "ueberfaellig" && a.status !== status) return false;
+    if (!passtZuStatusFilter(a, status)) return false;
     if (suche) {
       const heu = `${a.verdeckt ? "" : (a.titel || "") + " " + (a.beschreibung || "")} ${nameVon(a.empfaenger)}`.toLowerCase();
       if (!heu.includes(suche)) return false;
@@ -298,10 +347,8 @@ function renderAlle() {
   document.getElementById("alle-liste").innerHTML = gefilterteAufgaben.map(aufgabeZeileHtml).join("");
   document.getElementById("alle-empty").classList.toggle("hidden", gefilterteAufgaben.length > 0);
 
-  // Ausgeblendetes wird beziffert, nicht stillschweigend weggefiltert.
-  const versteckt = aufgaben.length - gefilterteAufgaben.length;
   document.getElementById("filter-count").textContent =
-    `${gefilterteAufgaben.length} von ${aufgaben.length}` + (versteckt ? ` · ${versteckt} ausgeblendet` : "");
+    filterHinweis(gefilterteAufgaben.length, aufgaben.length);
 }
 
 // ---------- Rendering: Ressorts ----------
@@ -393,6 +440,20 @@ function renderAll() {
   if (zertGeladen) renderZert();
   renderInfo();
   applyRechteSichtbarkeit();
+}
+
+// Die Auswahl steht in config.js und wird hier in jeden Statusfilter geschrieben.
+// Vorgabe ist überall "Offen und zur Abnahme": abgeschlossene Vorgänge bleiben
+// dauerhaft erhalten, sollen aber nicht die tägliche Arbeitsliste füllen. Muss
+// vor dem ersten Zeichnen laufen, sonst liest die Ansicht einen leeren Wert und
+// zeigt doch alles.
+function fuelleStatusFilter() {
+  const html = STATUS_FILTER_AUSWAHL
+    .map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+  document.querySelectorAll("select.status-filter").forEach((sel) => {
+    sel.innerHTML = html;
+    sel.value = "offen-alle";
+  });
 }
 
 function fuelleFilterDropdowns() {
@@ -1660,10 +1721,16 @@ function setupListeners() {
     if (red) { oeffneRessortModal(red.dataset.ressortEdit); return; }
   });
 
+  fuelleStatusFilter();
+
   ["filter-suche", "filter-person", "filter-ressort", "filter-status"].forEach((id) => {
     document.getElementById(id).addEventListener("input", renderAlle);
     document.getElementById(id).addEventListener("change", renderAlle);
   });
+
+  document.getElementById("uebersicht-filter-status").addEventListener("change", renderUebersicht);
+  document.getElementById("meine-filter-status").addEventListener("change", renderMeine);
+  document.getElementById("vonmir-filter-status").addEventListener("change", renderMeine);
 
   document.getElementById("btn-export-csv").addEventListener("click", exportCsv);
   document.getElementById("btn-export-druck").addEventListener("click", druckeListe);

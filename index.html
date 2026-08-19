@@ -52,6 +52,10 @@
         <div class="card">
           <h2>Wer tut was</h2>
           <p class="muted" style="margin-bottom:14px;">Je Person offene, überfällige und erledigte Aufgaben. Ein Klick klappt die einzelnen Vorgänge auf.</p>
+          <div class="filter-bar">
+            <select id="uebersicht-filter-status" class="status-filter"></select>
+            <span class="filter-count" id="uebersicht-filter-count"></span>
+          </div>
           <div class="person-list" id="person-list"></div>
           <div class="empty-state hidden" id="uebersicht-empty">Es ist noch keine Aufgabe erfasst.</div>
         </div>
@@ -61,12 +65,20 @@
       <section class="tab-section" id="tab-meine">
         <div class="card">
           <h2>An mich gerichtet</h2>
+          <div class="filter-bar">
+            <select id="meine-filter-status" class="status-filter"></select>
+            <span class="filter-count" id="meine-count"></span>
+          </div>
           <div class="aufgaben-liste" id="meine-liste"></div>
           <div class="empty-state hidden" id="meine-empty">Für dich ist gerade nichts offen.</div>
         </div>
         <div class="card">
           <h2>Von mir zugewiesen</h2>
           <p class="muted" style="margin-bottom:14px;">Was du anderen aufgetragen hast — inklusive dessen, was bereits erledigt wurde.</p>
+          <div class="filter-bar">
+            <select id="vonmir-filter-status" class="status-filter"></select>
+            <span class="filter-count" id="vonmir-count"></span>
+          </div>
           <div class="aufgaben-liste" id="vonmir-liste"></div>
           <div class="empty-state hidden" id="vonmir-empty">Du hast noch niemandem eine Aufgabe zugewiesen.</div>
         </div>
@@ -79,16 +91,7 @@
             <input type="search" id="filter-suche" placeholder="Suche in Titel und Beschreibung…" />
             <select id="filter-person"><option value="">Alle Personen</option></select>
             <select id="filter-ressort"><option value="">Alle Ressorts</option></select>
-            <select id="filter-status">
-              <option value="offen-alle">Offen und zur Abnahme</option>
-              <option value="">Alle Status</option>
-              <option value="offen">Nur offen</option>
-              <option value="gemeldet">Nur zur Abnahme</option>
-              <option value="ueberfaellig">Nur überfällig</option>
-              <option value="erledigt">Nur erledigt</option>
-              <option value="abgelehnt">Nur abgelehnt</option>
-              <option value="zurueckgezogen">Nur zurückgezogen</option>
-            </select>
+            <select id="filter-status" class="status-filter"></select>
             <span class="filter-count" id="filter-count"></span>
           </div>
           <div class="aufgaben-liste" id="alle-liste"></div>
@@ -359,9 +362,9 @@
     </div>
   </div>
 
-  <script src="config.js?v=1.7"></script>
+  <script src="config.js?v=1.8"></script>
   <script src="kriterien.js?v=1.0"></script>
   <script src="db.js?v=1.2"></script>
-  <script src="app.js?v=1.7"></script>
+  <script src="app.js?v=1.8"></script>
 </body>
 </html>

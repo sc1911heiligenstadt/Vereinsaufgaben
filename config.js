@@ -24,9 +24,45 @@ const STATUS_WERTE = [
 // Status wandern in der Personenübersicht aus der Spalte "offen" heraus.
 const STATUS_ABGESCHLOSSEN = ["erledigt", "abgelehnt", "zurueckgezogen"];
 
+// Die Auswahl im Statusfilter -- eine Liste für alle vier Aufgabenlisten der App.
+// "offen-alle" und "ueberfaellig" sind keine gespeicherten Status, sondern
+// gerechnete Sichten (passtZuStatusFilter() in app.js). Die erste Zeile ist
+// zugleich die Vorgabe: Erledigtes bleibt dauerhaft erhalten, soll aber nicht die
+// tägliche Arbeitsliste füllen.
+const STATUS_FILTER_AUSWAHL = [
+  { value: "offen-alle",     label: "Offen und zur Abnahme" },
+  { value: "",               label: "Alle Status" },
+  { value: "offen",          label: "Nur offen" },
+  { value: "gemeldet",       label: "Nur zur Abnahme" },
+  { value: "ueberfaellig",   label: "Nur überfällig" },
+  { value: "erledigt",       label: "Nur erledigt" },
+  { value: "abgelehnt",      label: "Nur abgelehnt" },
+  { value: "zurueckgezogen", label: "Nur zurückgezogen" }
+];
+
 const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
+  {
+    version: "1.2",
+    groups: [
+      {
+        title: "Erledigtes aus dem Weg",
+        items: [
+          "Jede Aufgabenliste hat jetzt einen eigenen Statusfilter, und der steht von sich aus auf „Offen und zur Abnahme“. Erledigte, abgelehnte und zurückgezogene Vorgänge liegen damit nicht mehr auf der täglichen Arbeitsliste — sie sind einen Klick entfernt und bleiben, wie versprochen, dauerhaft erhalten.",
+          "Das betrifft die drei Listen, die bisher keinen Filter hatten: die aufgeklappten Vorgänge unter „Wer tut was“, „An mich gerichtet“ und „Von mir zugewiesen“. Der Reiter „Alle Aufgaben“ hatte ihn bereits.",
+          "Neben jedem Filter steht, wie viel gerade ausgeblendet ist — etwa „12 von 30 · 18 ausgeblendet“. Nichts verschwindet stillschweigend.",
+          "Die Zahlen am Kopf jeder Person und die Zahl am Reiter „Meine Aufgaben“ zählen weiter den echten Bestand. Sie ließen sich sonst durch eine Filterwahl kleinrechnen."
+        ]
+      },
+      {
+        title: "Kleinigkeit am Rand",
+        items: [
+          "Das rote Dreieck für „hohe Priorität“ steht nicht mehr an abgeschlossenen Aufgaben. Es ist ein Hinweis zum Handeln — an einer erledigten Aufgabe war es eine Warnung, auf die niemand mehr reagieren konnte."
+        ]
+      }
+    ]
+  },
   {
     version: "1.1",
     groups: [

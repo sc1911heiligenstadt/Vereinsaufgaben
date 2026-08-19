@@ -44,6 +44,21 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.3",
+    groups: [
+      {
+        title: "An eine Aufgabe erinnern",
+        items: [
+          "Offene Aufgaben haben jetzt einen Knopf „🔔 Erinnern“. Ein Druck darauf schickt dem Empfänger dieselbe E-Mail wie beim Zuweisen noch einmal — und zusätzlich eine Nachricht aufs Handy, wenn er dafür ein Gerät angemeldet hat.",
+          "Den Knopf sieht, wer die Aufgabe gestellt hat, sowie wer die Vereinsaufgaben administrieren darf. Er steht in jeder Aufgabenliste rechts in der Zeile und außerdem im geöffneten Vorgang.",
+          "Nur bei offenen Aufgaben: eine bereits als erledigt gemeldete wartet auf deine Abnahme, nicht auf den Empfänger. An die eigene Aufgabe kann man sich nicht selbst erinnern.",
+          "Höchstens eine Erinnerung alle zwölf Stunden je Aufgabe. Sonst wäre der Knopf ein Störsender, und mehrere gleiche Nachrichten hintereinander liest ohnehin niemand mehr.",
+          "Jede Erinnerung steht im Verlauf des Vorgangs, mit Zeitpunkt und Namen. Die E-Mail nennt bei einer vertraulichen Aufgabe wie gehabt weder Titel noch Beschreibung."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.2",
     groups: [
       {

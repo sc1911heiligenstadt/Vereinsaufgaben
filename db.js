@@ -104,6 +104,14 @@ async function reaktiviereAufgabe(id) {
   return gatewayRequest({ action: "vereinsaufgabe-reaktivieren", app: GATEWAY_APP_ID, id });
 }
 
+// Schickt die Mail vom Anlegen und die Push-Nachricht noch einmal an den Empfaenger.
+// Nur der Zuweiser und die Administrieren-Stufe, nur bei offenen Aufgaben, und
+// serverseitig auf eine Erinnerung je 12 Stunden begrenzt (dann 429 mit Restzeit).
+// Der Empfaenger steht im Datensatz und wird bewusst NICHT mitgeschickt.
+async function erinnereAnAufgabe(id) {
+  return gatewayRequest({ action: "vereinsaufgabe-erinnern", app: GATEWAY_APP_ID, id });
+}
+
 async function loescheAufgabe(id) {
   return gatewayRequest({ action: "vereinsaufgabe-loeschen", app: GATEWAY_APP_ID, id });
 }

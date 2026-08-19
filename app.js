@@ -274,6 +274,16 @@ function kachel(titel, wert, farbe) {
 
 // ---------- Rendering: Aufgabenzeile ----------
 
+// Wer eine Aufgabe anstoßen darf: der Zuweiser und die Administrieren-Stufe — genau
+// wie beim Ändern. Nur bei OFFENEN Aufgaben (eine gemeldete liegt beim Zuweiser) und
+// nie an sich selbst. Der Worker prüft dasselbe noch einmal; das hier ist die Anzeige.
+function darfErinnern(a) {
+  if (!canEdit() || !currentUser) return false;
+  if (a.status !== "offen") return false;
+  if (a.empfaenger === currentUser.username) return false;
+  return a.von === currentUser.username || canAdmin();
+}
+
 function aufgabeZeileHtml(a) {
   const st = statusInfo(a.status);
   const ueber = istUeberfaellig(a);
@@ -292,11 +302,23 @@ function aufgabeZeileHtml(a) {
         </span>
       </span>
       <span class="az-rechts">
+        ${darfErinnern(a) ? erinnernKnopfHtml(a) : ""}
         ${zeigePrioZeichen(a) ? `<span class="az-prio" style="color:${prio.farbe}">▲</span>` : ""}
         <span class="az-frist${ueber ? " warn" : ""}">${datumLesbar(a.faellig)}</span>
         <span class="az-status" style="background:${st.farbe}">${escapeHtml(ueber ? "Überfällig" : st.label)}</span>
       </span>
     </button>`;
+}
+
+// ⚠️ Ein <button> darf keinen weiteren Button enthalten — der HTML-Parser wirft ihn
+// aus der Zeile heraus, und die ganze Zeile IST hier ein Button. Deshalb ein <span>
+// mit role/tabindex; den Klick fängt die Delegation am <main> ab, VOR dem Öffnen des
+// Vorgangs (sonst ginge zusätzlich das Detailfenster auf).
+function erinnernKnopfHtml(a) {
+  const zuletzt = a.erinnertAm ? ` · zuletzt erinnert am ${zeitLesbar(a.erinnertAm)}` : "";
+  return `<span class="az-erinnern" role="button" tabindex="0" data-erinnern="${escapeHtml(a.id)}"
+    title="${escapeHtml(nameVon(a.empfaenger))} an diese Aufgabe erinnern (E-Mail und Nachricht aufs Handy)${escapeHtml(zuletzt)}"
+    aria-label="An diese Aufgabe erinnern">🔔<span class="az-erinnern-wort"> Erinnern</span></span>`;
 }
 
 // ---------- Rendering: Meine Aufgaben ----------
@@ -606,6 +628,7 @@ function verlaufText(v) {
   // Datensatz, damit sie einer offenen Aufgabe nicht widerspricht. Dieser
   // Verlaufseintrag ist danach der einzige Ort, an dem sie noch steht.
   if (v.was === "abschlussgrund") return `Begründung des aufgehobenen Abschlusses: ${v.alt}`;
+  if (v.was === "erinnerung") return "Erinnerung verschickt (E-Mail und Nachricht aufs Handy)";
   if (v.was === "empfaenger") return `Empfänger: ${nameVon(v.alt)} → ${nameVon(v.neu)}`;
   const name = felder[v.was] || v.was;
   if (v.was === "faellig") return `${name}: ${datumLesbar(v.alt)} → ${datumLesbar(v.neu)}`;
@@ -630,6 +653,12 @@ function renderDetailAktionen(a, binEmpfaenger, binZuweiser) {
   if (canEdit() && binZuweiser && a.status === "gemeldet") {
     knoepfe.push(`<button class="btn success" data-akt="abgenommen">Abnehmen</button>`);
     knoepfe.push(`<button class="btn secondary" data-akt="zurueckgegeben">Zurückgeben…</button>`);
+  }
+  // Anstoßen einer liegengebliebenen Aufgabe: schickt Mail und Push noch einmal an
+  // den Empfänger. Gleiche Rechte wie in der Liste (darfErinnern), der Worker prüft
+  // sie ein zweites Mal und bremst mehrere Erinnerungen kurz hintereinander ab.
+  if (darfErinnern(a)) {
+    knoepfe.push(`<button class="btn secondary" data-akt="erinnern">${a.erinnertAm ? "Erneut erinnern…" : "Erinnern…"}</button>`);
   }
   if (canEdit() && (binZuweiser || canAdmin()) && (a.status === "offen" || a.status === "gemeldet")) {
     knoepfe.push(`<button class="btn secondary" data-akt="zurueckziehen">Zurückziehen…</button>`);
@@ -668,6 +697,9 @@ async function fuehreAktionAus(aktion) {
       if (grund === null) return;
       if (!grund.trim()) { alert("Ohne Begründung geht das nicht."); return; }
       await setzeStatus(a.id, aktion, grund.trim());
+    } else if (aktion === "erinnern") {
+      await erinnereAn(a.id);
+      return; // erinnereAn macht Rückfrage, Meldung und Neuladen selbst
     } else if (aktion === "zurueckziehen") {
       const grund = prompt("Warum ziehst du die Aufgabe zurück? (freiwillig)") || "";
       await zieheAufgabeZurueck(a.id, grund.trim());
@@ -718,6 +750,52 @@ async function sendeKommentar() {
     renderAll();
     oeffneDetail(offeneDetailId);
   } catch (e) { zeigeFehler(e); }
+}
+
+// Erinnerung anstoßen. Fragt vorher nach: der Klick löst eine E-Mail UND eine
+// Nachricht auf dem Handy des Empfängers aus, und beides lässt sich nicht zurückholen.
+async function erinnereAn(id) {
+  const a = aufgaben.find((x) => x.id === id);
+  if (!a) return;
+  const name = nameVon(a.empfaenger);
+  const wieder = a.erinnertAm ? `\n\nZuletzt erinnert: ${zeitLesbar(a.erinnertAm)}.` : "";
+  if (!confirm(`${name} an „${titelVon(a)}" erinnern?${wieder}\n\nEs geht eine E-Mail raus und eine Nachricht aufs Handy.`)) return;
+  try {
+    setStatusText("Erinnerung geht raus…");
+    const body = await erinnereAnAufgabe(id);
+    meldeErinnerung(body, name);
+    await ladeDaten();
+    renderAll();
+    if (offeneDetailId === id) oeffneDetail(id);
+  } catch (e) { zeigeFehler(e); }
+}
+
+// Wie meldeVersand beim Anlegen: der Normalfall steht in der flüchtigen Statuszeile,
+// jede Lücke in einem Hinweis, den man wegklicken muss. Eine ausgebliebene Mail darf
+// nicht stillschweigend durchgehen — sonst wartet der Zuweiser auf eine Reaktion.
+function meldeErinnerung(body, name) {
+  // Antwortet noch der alte Worker, fehlen die Versandfelder. Aus ihrem Fehlen
+  // „0 benachrichtigt" zu rechnen würde einen Fehlschlag melden, den es nicht gab.
+  if (!body || typeof body.benachrichtigt !== "number") {
+    setStatusText("Erinnerung verschickt");
+    return;
+  }
+  if (body.mailAus) {
+    setStatusText("Erinnerung verschickt");
+    alert(`${name} wurde erinnert.\n\nEs ging KEINE E-Mail raus — der Mailversand ist gerade nicht verfügbar. Die Nachricht aufs Handy wurde trotzdem beauftragt.`);
+    return;
+  }
+  if ((body.ohneAdresse || []).length) {
+    setStatusText("Erinnerung verschickt");
+    alert(`${name} wurde erinnert.\n\nEs ging keine E-Mail raus: In den Trainerdaten ist dazu keine E-Mail-Adresse hinterlegt. Die Nachricht aufs Handy wurde trotzdem beauftragt.`);
+    return;
+  }
+  if (!body.benachrichtigt) {
+    setStatusText("Erinnerung verschickt");
+    alert(`${name} wurde erinnert.\n\nDer E-Mail-Versand ist allerdings fehlgeschlagen. Die Nachricht aufs Handy wurde trotzdem beauftragt.`);
+    return;
+  }
+  setStatusText(`${name} erinnert · E-Mail verschickt`);
 }
 
 async function loescheAktuelleAufgabe() {
@@ -1715,10 +1793,24 @@ function setupListeners() {
       if (body) body.classList.toggle("hidden");
       return;
     }
+    // Muss VOR der Zeile stehen: der Erinnern-Knopf liegt IN der Zeile, sonst
+    // öffnete sein Klick zusätzlich das Detailfenster.
+    const erinnern = e.target.closest("[data-erinnern]");
+    if (erinnern) { erinnereAn(erinnern.dataset.erinnern); return; }
     const zeile = e.target.closest("[data-aufgabe]");
     if (zeile) { oeffneDetail(zeile.dataset.aufgabe); return; }
     const red = e.target.closest("[data-ressort-edit]");
     if (red) { oeffneRessortModal(red.dataset.ressortEdit); return; }
+  });
+
+  // Der Erinnern-Knopf ist ein <span> (in einem <button> ist kein zweiter Button
+  // erlaubt) und bekommt seine Tastaturbedienung deshalb nicht geschenkt.
+  document.querySelector("main").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const erinnern = e.target.closest("[data-erinnern]");
+    if (!erinnern) return;
+    e.preventDefault();
+    erinnereAn(erinnern.dataset.erinnern);
   });
 
   fuelleStatusFilter();

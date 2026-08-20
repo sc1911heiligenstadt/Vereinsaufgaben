@@ -44,6 +44,17 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.4",
+    groups: [
+      {
+        title: "Am Handy",
+        items: [
+          "Die Reiterleiste bricht am Handy jetzt um, statt seitlich aus dem Bild zu laufen. Sichtbar wird das nur, wenn genug Reiter nebeneinanderstehen — dann rutscht die rechte Gruppe in eine zweite Zeile, statt den letzten Reiter hinter den Bildschirmrand zu schieben."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.3",
     groups: [
       {

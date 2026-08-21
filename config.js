@@ -44,6 +44,17 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.5",
+    groups: [
+      {
+        title: "Der richtige Vereinsname",
+        items: [
+          "Im Ausdruck der Klubzertifizierung stand „1. SC 1911 Heilbad Heiligenstadt“ — ohne Rechtsform und mit dem Ortsnamen im Vereinsnamen. Richtig ist „1. SC 1911 Heiligenstadt e.V.“, und so steht es jetzt dort."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.4",
     groups: [
       {

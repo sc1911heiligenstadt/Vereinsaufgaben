@@ -1692,7 +1692,7 @@ function druckeZertBericht() {
 
   document.getElementById("print-content").innerHTML = `
     <h1>Klubzertifizierung — Stand ${escapeHtml(datumLesbar(heuteIso()))}</h1>
-    <p class="print-meta">1. SC 1911 Heilbad Heiligenstadt · ${ZERT_KRITERIEN.length} Kriterien des Verbandes</p>
+    <p class="print-meta">1. SC 1911 Heiligenstadt e.V. · ${ZERT_KRITERIEN.length} Kriterien des Verbandes</p>
     ${teile}`;
   document.body.classList.add("printing-report");
   window.print();

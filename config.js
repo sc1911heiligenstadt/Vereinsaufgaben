@@ -44,6 +44,19 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.7",
+    groups: [
+      {
+        title: "Die Aufgabenliste steht schneller",
+        items: [
+          "Beim Öffnen wurden bisher drei Abfragen streng nacheinander gestellt. Die erste davon — die Frage nach dem eigenen Konto — war überflüssig: Die Antwort kommt seit längerem schon mit der Aufgabenliste mit. Sie ist entfallen.",
+          "Die beiden verbliebenen Abfragen laufen jetzt gemeinsam los statt hintereinander.",
+          "Nebenbei: Oben rechts stand bisher beim Start kurz der Anmeldename statt des Anzeigenamens. Jetzt steht dort gleich der richtige."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.6",
     groups: [
       {

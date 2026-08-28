@@ -188,8 +188,9 @@ function ressortVon(id) {
 
 // ---------- Laden ----------
 
-async function ladeDaten() {
-  const body = await ladeAlles();
+// vorabP: ein bereits gestarteter vereinsaufgaben-load-Aufruf (siehe init).
+async function ladeDaten(vorabP) {
+  const body = await (vorabP || ladeAlles());
   ressorts = Array.isArray(body.ressorts) ? body.ressorts : [];
   aufgaben = Array.isArray(body.aufgaben) ? body.aufgaben : [];
   protokoll = Array.isArray(body.protokoll) ? body.protokoll : [];
@@ -197,9 +198,10 @@ async function ladeDaten() {
   if (body.me) currentUser = Object.assign({}, currentUser, body.me);
 }
 
-async function ladePersonen() {
+// vorabP: ein bereits gestarteter list-tool-editors-Aufruf (siehe init).
+async function ladePersonen(vorabP) {
   try {
-    const body = await ladeMoeglicheEmpfaenger();
+    const body = await (vorabP || ladeMoeglicheEmpfaenger());
     personen = Array.isArray(body.users) ? body.users : [];
     personen.forEach((p) => { if (!alleAnzeigeNamen[p.username]) alleAnzeigeNamen[p.username] = p.displayName; });
   } catch (e) {
@@ -1870,26 +1872,51 @@ function setupListeners() {
 async function init() {
   document.getElementById("version-badge-2").textContent = "v" + APP_VERSION;
 
+  // ⚠️ Hier liefen bis 2026-08-28 DREI Worker-Aufrufe streng nacheinander:
+  // me -> list-tool-editors -> vereinsaufgaben-load. Bei ~180 ms je Roundtrip
+  // eine gute halbe Sekunde, bevor die erste Aufgabe zu sehen ist.
+  //
+  // me ist ganz entfallen: vereinsaufgaben-load liefert es als body.me mit
+  // (handleVaLoad im admin-worker), und ladeDaten() setzt currentUser daraus.
+  // Das Anmelde-Gate haengt jetzt an ladeAlles(), das denselben
+  // NotLoggedInError wirft. Die beiden verbliebenen Aufrufe starten gemeinsam;
+  // ausgewertet wird in der bisherigen Reihenfolge (erst Personen, dann Daten),
+  // damit sich am Ergebnis nichts aendert.
+  const personenP = ladeMoeglicheEmpfaenger();
+  personenP.catch(() => {}); // Platzhalter gegen unhandled rejection, siehe ladePersonen
+  const datenP = ladeAlles();
+  datenP.catch(() => {});
+
   try {
-    currentUser = await fetchMe();
+    await ladePersonen(personenP);
+    await ladeDaten(datenP);
   } catch (e) {
+    // Beim ERSTEN Laden steht die App noch gar nicht -- also dasselbe Gate wie
+    // frueher beim fehlgeschlagenen me, nicht zeigeFehler() (das setzt eine
+    // sichtbare Oberflaeche voraus und wirft nur ein alert davor).
     zeigeLoginGate(e instanceof NotLoggedInError ? "" : (e.message || ""));
     return;
   }
 
+  // Rueckfall, falls ein alter Worker body.me noch nicht mitschickt: dann kostet
+  // es den Roundtrip wie frueher, statt dass die Seite an currentUser === null
+  // zerbricht. Im Normalfall laeuft diese Zeile nie.
+  if (!currentUser) {
+    try {
+      currentUser = await fetchMe();
+    } catch (e) {
+      zeigeLoginGate(e instanceof NotLoggedInError ? "" : (e.message || ""));
+      return;
+    }
+  }
+
   document.getElementById("connect-screen").style.display = "none";
   document.getElementById("app-shell").style.display = "";
+  // Steht jetzt NACH dem Laden: nameVon() liest alleAnzeigeNamen, und das fuellt
+  // erst ladeDaten(). Vorher stand hier zwangslaeufig der rohe Nutzername.
   document.getElementById("header-user").textContent = nameVon(currentUser.username);
 
   setupListeners();
-
-  try {
-    await ladePersonen();
-    await ladeDaten();
-  } catch (e) {
-    zeigeFehler(e);
-    return;
-  }
 
   renderAll();
   // Wer verwaltet, will zuerst sehen, wer was liegen hat; alle anderen ihre

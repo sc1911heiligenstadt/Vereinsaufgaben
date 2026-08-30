@@ -34,13 +34,13 @@ function getSessionToken() {
 
 async function gatewayRequest(payload) {
   const token = getSessionToken();
-  if (!token) throw new NotLoggedInError();
+  if (!token) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError(); }
   const resp = await fetch(GATEWAY_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify(payload)
   });
-  if (resp.status === 401) throw new NotLoggedInError("Sitzung abgelaufen");
+  if (resp.status === 401) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError("Sitzung abgelaufen"); }
   if (resp.status === 409) throw new ConflictError();
   // 400/403 tragen eine sprechende Begründung aus dem Worker (z.B. "Nur der
   // Empfänger darf abhaken") — die ist für den Nutzer wertvoller als ein
@@ -138,13 +138,13 @@ async function ladeAnhangHoch(aufgabeId, name, art, dataUrl) {
 // Deshalb hier ein eigener fetch statt gatewayRequest, das immer JSON erwartet.
 async function holeAnhang(aufgabeId, fileId) {
   const token = getSessionToken();
-  if (!token) throw new NotLoggedInError();
+  if (!token) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError(); }
   const resp = await fetch(GATEWAY_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify({ action: "vereinsaufgabe-datei-get", app: GATEWAY_APP_ID, id: aufgabeId, fileId })
   });
-  if (resp.status === 401) throw new NotLoggedInError("Sitzung abgelaufen");
+  if (resp.status === 401) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError("Sitzung abgelaufen"); }
   if (!resp.ok) {
     let msg = `Anhang konnte nicht geladen werden (HTTP ${resp.status})`;
     try { const b = await resp.json(); if (b && b.error) msg = b.error; } catch (_) { /* kein JSON-Körper */ }
@@ -218,13 +218,13 @@ async function ladeZertNachweisHoch(kritId, name, dataUrl) {
 // durch, statt sie als base64 zu verpacken.
 async function holeZertNachweis(kritId, fileId) {
   const token = getSessionToken();
-  if (!token) throw new NotLoggedInError();
+  if (!token) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError(); }
   const resp = await fetch(GATEWAY_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
     body: JSON.stringify({ action: "zertifizierung-datei-get", app: GATEWAY_APP_ID, kritId, fileId })
   });
-  if (resp.status === 401) throw new NotLoggedInError("Sitzung abgelaufen");
+  if (resp.status === 401) { if (typeof raeumeBeiSitzungsverlust === "function") raeumeBeiSitzungsverlust(); throw new NotLoggedInError("Sitzung abgelaufen"); }
   if (!resp.ok) {
     let msg = `Nachweis konnte nicht geladen werden (HTTP ${resp.status})`;
     try { const b = await resp.json(); if (b && b.error) msg = b.error; } catch (_) { /* kein JSON-Körper */ }

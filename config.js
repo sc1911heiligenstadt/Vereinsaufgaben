@@ -44,6 +44,18 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.8",
+    groups: [
+      {
+        title: "Beim Sitzungsende wird auch alles neben der Seite geräumt",
+        items: [
+          "Beim Sitzungsende wurde die Seite bereits geleert. Die fünf Dialoge und die Druckansicht stehen aber daneben und blieben mit Namen und Eingaben stehen. Jetzt werden sie mitgeleert.",
+          "Der Hinweis erscheint außerdem an jeder Stelle, an der die Anmeldung wegfällt — vorher nur bei einem Teil der Wege."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.7",
     groups: [
       {

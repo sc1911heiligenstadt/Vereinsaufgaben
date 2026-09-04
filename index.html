@@ -162,8 +162,8 @@
           <h2>Amtsübergabe</h2>
           <p class="muted" style="margin-bottom:14px;">Überträgt alle noch offenen Aufgaben einer Person auf jemand anderen. Erledigtes bleibt beim ursprünglichen Bearbeiter — ein Personalwechsel schreibt die Vergangenheit nicht um.</p>
           <div class="form-grid">
-            <div class="form-field"><label>Aufgaben von</label><select id="uebergabe-von"></select></div>
-            <div class="form-field"><label>übertragen auf</label><select id="uebergabe-auf"></select></div>
+            <div class="form-field"><label for="uebergabe-von">Aufgaben von</label><select id="uebergabe-von"></select></div>
+            <div class="form-field"><label for="uebergabe-auf">übertragen auf</label><select id="uebergabe-auf"></select></div>
           </div>
           <div class="btn-row" style="justify-content:flex-start;margin-top:10px;">
             <button class="btn" id="btn-uebergabe">Offene Aufgaben übertragen</button>
@@ -240,15 +240,15 @@
             <div id="zw-personen" class="checkbox-list"></div>
           </div>
           <div class="form-field wide hidden" id="zw-ressort-feld">
-            <label>Ressort</label>
+            <label for="zw-ressort">Ressort</label>
             <select id="zw-ressort"></select>
             <p class="muted" id="zw-ressort-hinweis" style="margin-top:6px;"></p>
           </div>
           <div class="form-grid">
-            <div class="form-field wide"><label>Titel *</label><input type="text" id="zw-titel" maxlength="200" placeholder="z. B. Hallenzeiten für die Winterpause beantragen" /></div>
-            <div class="form-field"><label>Frist *</label><input type="date" id="zw-faellig" /></div>
-            <div class="form-field"><label>Priorität</label><select id="zw-prioritaet"></select></div>
-            <div class="form-field wide"><label>Beschreibung</label><textarea id="zw-beschreibung" rows="4" maxlength="4000" placeholder="Einzelheiten, Ansprechpartner, Hintergrund…"></textarea></div>
+            <div class="form-field wide"><label for="zw-titel">Titel *</label><input type="text" id="zw-titel" maxlength="200" placeholder="z. B. Hallenzeiten für die Winterpause beantragen" /></div>
+            <div class="form-field"><label for="zw-faellig">Frist *</label><input type="date" id="zw-faellig" /></div>
+            <div class="form-field"><label for="zw-prioritaet">Priorität</label><select id="zw-prioritaet"></select></div>
+            <div class="form-field wide"><label for="zw-beschreibung">Beschreibung</label><textarea id="zw-beschreibung" rows="4" maxlength="4000" placeholder="Einzelheiten, Ansprechpartner, Hintergrund…"></textarea></div>
           </div>
           <div class="form-field wide">
             <div class="checkbox-row">
@@ -296,10 +296,10 @@
       <div class="modal-body">
         <form id="ressort-form">
           <div class="form-grid">
-            <div class="form-field wide"><label>Name *</label><input type="text" id="rf-name" maxlength="120" placeholder="z. B. Platzanlage" /></div>
-            <div class="form-field wide"><label>Zuständigkeit</label><textarea id="rf-beschreibung" rows="3" maxlength="2000" placeholder="Wofür ist dieses Ressort verantwortlich?"></textarea></div>
-            <div class="form-field"><label>Verantwortlich *</label><select id="rf-verantwortlich"></select></div>
-            <div class="form-field"><label>Stellvertretung</label><select id="rf-stellvertreter"></select></div>
+            <div class="form-field wide"><label for="rf-name">Name *</label><input type="text" id="rf-name" maxlength="120" placeholder="z. B. Platzanlage" /></div>
+            <div class="form-field wide"><label for="rf-beschreibung">Zuständigkeit</label><textarea id="rf-beschreibung" rows="3" maxlength="2000" placeholder="Wofür ist dieses Ressort verantwortlich?"></textarea></div>
+            <div class="form-field"><label for="rf-verantwortlich">Verantwortlich *</label><select id="rf-verantwortlich"></select></div>
+            <div class="form-field"><label for="rf-stellvertreter">Stellvertretung</label><select id="rf-stellvertreter"></select></div>
           </div>
           <div class="form-field wide">
             <label>Weitere Mitglieder</label>
@@ -345,9 +345,9 @@
         <p class="muted" id="zert-aufgabe-kriterium" style="margin-bottom:14px;"></p>
         <form id="zert-aufgabe-form">
           <div class="form-grid">
-            <div class="form-field wide"><label>Was ist zu tun? *</label><input type="text" id="za-titel" maxlength="200" placeholder="z. B. Leitbild schreiben und in der Versammlung verabschieden" /></div>
-            <div class="form-field"><label>Wer? *</label><select id="za-empfaenger"></select></div>
-            <div class="form-field"><label>Bis wann? (freiwillig)</label><input type="date" id="za-faellig" /></div>
+            <div class="form-field wide"><label for="za-titel">Was ist zu tun? *</label><input type="text" id="za-titel" maxlength="200" placeholder="z. B. Leitbild schreiben und in der Versammlung verabschieden" /></div>
+            <div class="form-field"><label for="za-empfaenger">Wer? *</label><select id="za-empfaenger"></select></div>
+            <div class="form-field"><label for="za-faellig">Bis wann? (freiwillig)</label><input type="date" id="za-faellig" /></div>
           </div>
           <p class="muted">Es geht keine E-Mail und keine Nachricht aufs Handy raus — sag der Person also Bescheid. Sie findet die Aufgabe in diesem Tab am Kriterium.</p>
         </form>

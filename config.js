@@ -44,6 +44,18 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.1",
+    groups: [
+      {
+        title: "Ressort-Dialog",
+        items: [
+          "Wer sein Bearbeiten-Recht verloren hat, blieb bisher zwar im Ressort gespeichert, tauchte im Ressort-Dialog aber nicht mehr auf — und wurde beim nächsten Speichern lautlos als Stellvertreter geleert und aus den Mitgliedern gestrichen. Diese Namen stehen jetzt weiter in der Auswahl, gekennzeichnet mit „(ohne Bearbeiten-Recht)“.",
+          "Auch der Verantwortliche bleibt damit sichtbar; vorher ließ sich ein solches Ressort gar nicht mehr speichern, ohne dass irgendwo stand, wer es war."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.0",
     groups: [
       {

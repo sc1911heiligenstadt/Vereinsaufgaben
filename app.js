@@ -34,6 +34,29 @@ function nameVon(username) {
   return alleAnzeigeNamen[username] || username;
 }
 
+// `personen` kommt aus list-tool-editors, enthaelt also nur Leute mit
+// Bearbeiten- oder Admin-Recht. Ein Ressort-Amt ist serverseitig BEWUSST davon
+// entkoppelt (vaPruefeMitglied prueft nur "existiert + ist Personal") — wer
+// sein Recht verliert, bleibt ein gueltiger Verantwortlicher, Stellvertreter
+// oder Mitglied. Ohne diese Vereinigung faende ein Auswahlfeld den
+// gespeicherten Namen nicht und wuerde ihn beim naechsten Speichern lautlos
+// aus dem Bestand werfen.
+function personenMitBestand(zusatzUsernames) {
+  const liste = personen.map((p) => ({ username: p.username, displayName: p.displayName, ohneRecht: false }));
+  const bekannt = {};
+  liste.forEach((p) => { bekannt[p.username] = true; });
+  for (const u of (zusatzUsernames || [])) {
+    if (!u || bekannt[u]) continue;
+    bekannt[u] = true;
+    liste.push({ username: u, displayName: nameVon(u), ohneRecht: true });
+  }
+  return liste;
+}
+
+function personLabel(p) {
+  return escapeHtml(p.displayName) + (p.ohneRecht ? " (ohne Bearbeiten-Recht)" : "");
+}
+
 function statusInfo(id) {
   return STATUS_WERTE.find((s) => s.id === id) || STATUS_WERTE[0];
 }
@@ -1035,8 +1058,11 @@ function oeffneRessortModal(id) {
   document.getElementById("rf-name").value = r ? r.name : "";
   document.getElementById("rf-beschreibung").value = r ? (r.beschreibung || "") : "";
 
+  const mitglieder = r ? (r.mitglieder || []) : [];
+  const wahl = personenMitBestand(r ? [r.verantwortlich, r.stellvertreter].concat(mitglieder) : []);
+
   const opts = (leerLabel) => `<option value="">${leerLabel}</option>` +
-    personen.map((p) => `<option value="${escapeHtml(p.username)}">${escapeHtml(p.displayName)}</option>`).join("");
+    wahl.map((p) => `<option value="${escapeHtml(p.username)}">${personLabel(p)}</option>`).join("");
   const ver = document.getElementById("rf-verantwortlich");
   const stv = document.getElementById("rf-stellvertreter");
   ver.innerHTML = opts("— bitte wählen —");
@@ -1044,9 +1070,8 @@ function oeffneRessortModal(id) {
   ver.value = r ? (r.verantwortlich || "") : "";
   stv.value = r ? (r.stellvertreter || "") : "";
 
-  const mitglieder = r ? (r.mitglieder || []) : [];
-  document.getElementById("rf-mitglieder").innerHTML = personen.map((p) =>
-    `<label><input type="checkbox" value="${escapeHtml(p.username)}"${mitglieder.includes(p.username) ? " checked" : ""} /> ${escapeHtml(p.displayName)}</label>`).join("");
+  document.getElementById("rf-mitglieder").innerHTML = wahl.map((p) =>
+    `<label><input type="checkbox" value="${escapeHtml(p.username)}"${mitglieder.includes(p.username) ? " checked" : ""} /> ${personLabel(p)}</label>`).join("");
 
   document.getElementById("rf-loeschen").classList.toggle("hidden", !r);
   document.getElementById("ressort-modal").classList.remove("hidden");

@@ -44,6 +44,18 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.2",
+    groups: [
+      {
+        title: "Klubzertifizierung",
+        items: [
+          "Beim Ändern einer Aufgabe zu einem Kriterium wurde der Empfänger stillschweigend auf eine andere Person umgeschrieben, wenn der bisherige Empfänger sein Bearbeiten-Recht verloren hatte — der Dialog zeigte dann einfach die oberste Person der Liste. Der gespeicherte Empfänger steht jetzt immer mit in der Auswahl, gekennzeichnet mit „(ohne Bearbeiten-Recht)“.",
+          "Zusätzlich wird der Empfänger nur noch mitgespeichert, wenn er im Dialog wirklich geändert wurde. Wer nur die Frist verschiebt, kann die Zuständigkeit gar nicht mehr versehentlich verschieben."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.1",
     groups: [
       {

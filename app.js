@@ -1656,9 +1656,15 @@ function oeffneZertAufgabeModal(kritId, aufgabeId) {
 
   // Nur Personen, die diese App bearbeiten dürfen — wer sie nicht sieht, erfährt nie
   // von seiner Aufgabe und könnte sie auch nicht abhaken. Der Worker weist andere ab.
+  // Das Feld hat KEINE Leeroption: findet `selected` keine Option, waehlt der
+  // Browser die erste. Ein Empfaenger, der sein Bearbeiten-Recht verloren hat,
+  // stuende also nicht mehr drin — und "Aendern" schriebe die Aufgabe
+  // stillschweigend auf die zufaellig oberste Person um. Deshalb kommt der
+  // gespeicherte Empfaenger immer mit in die Liste.
   const gewaehlt = a ? a.empfaenger : (currentUser ? currentUser.username : "");
-  document.getElementById("za-empfaenger").innerHTML = personen.length
-    ? personen.map((p) => `<option value="${escapeHtml(p.username)}"${p.username === gewaehlt ? " selected" : ""}>${escapeHtml(p.displayName)}</option>`).join("")
+  const wahl = personenMitBestand(gewaehlt ? [gewaehlt] : []);
+  document.getElementById("za-empfaenger").innerHTML = wahl.length
+    ? wahl.map((p) => `<option value="${escapeHtml(p.username)}"${p.username === gewaehlt ? " selected" : ""}>${personLabel(p)}</option>`).join("")
     : `<option value="">— keine Person verfügbar —</option>`;
 
   document.getElementById("za-loeschen").classList.toggle("hidden",
@@ -1679,8 +1685,15 @@ async function speichereZertAufgabe() {
   if (!titel) { alert("Bitte angeben, was zu tun ist."); return; }
   if (!empfaenger) { alert("Bitte eine Person auswählen."); return; }
   try {
-    if (zertAufgabeId) await aendereZertAufgabe(zertAufgabeId, titel, empfaenger, faellig);
-    else await legeZertAufgabeAn(zertAufgabeKritId, titel, empfaenger, faellig);
+    if (zertAufgabeId) {
+      // Zweiter, unabhaengiger Riegel: das Empfaengerfeld nur mitschicken, wenn
+      // es sich gegenueber dem Bestand wirklich geaendert hat. Ein fehlendes
+      // Feld behandelt der Worker bereits als "unveraendert" (hatEmpfaenger),
+      // also kann selbst ein falsch vorbelegtes Feld nichts umschreiben.
+      const alt = zertAufgaben.find((x) => x.id === zertAufgabeId);
+      const geaendert = !alt || alt.empfaenger !== empfaenger;
+      await aendereZertAufgabe(zertAufgabeId, titel, geaendert ? empfaenger : undefined, faellig);
+    } else await legeZertAufgabeAn(zertAufgabeKritId, titel, empfaenger, faellig);
     schliesseZertAufgabeModal();
     setStatusText("Gespeichert");
     await zertNeuZeichnen();

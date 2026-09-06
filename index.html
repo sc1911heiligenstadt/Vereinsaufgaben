@@ -53,7 +53,7 @@
           <h2>Wer tut was</h2>
           <p class="muted" style="margin-bottom:14px;">Je Person offene, überfällige und erledigte Aufgaben. Ein Klick klappt die einzelnen Vorgänge auf.</p>
           <div class="filter-bar">
-            <select id="uebersicht-filter-status" class="status-filter"></select>
+            <select id="uebersicht-filter-status" aria-label="Übersicht nach Status filtern" class="status-filter"></select>
             <span class="filter-count" id="uebersicht-filter-count"></span>
           </div>
           <div class="person-list" id="person-list"></div>
@@ -66,7 +66,7 @@
         <div class="card">
           <h2>An mich gerichtet</h2>
           <div class="filter-bar">
-            <select id="meine-filter-status" class="status-filter"></select>
+            <select id="meine-filter-status" aria-label="An mich gerichtete nach Status filtern" class="status-filter"></select>
             <span class="filter-count" id="meine-count"></span>
           </div>
           <div class="aufgaben-liste" id="meine-liste"></div>
@@ -76,7 +76,7 @@
           <h2>Von mir zugewiesen</h2>
           <p class="muted" style="margin-bottom:14px;">Was du anderen aufgetragen hast — inklusive dessen, was bereits erledigt wurde.</p>
           <div class="filter-bar">
-            <select id="vonmir-filter-status" class="status-filter"></select>
+            <select id="vonmir-filter-status" aria-label="Von mir zugewiesene nach Status filtern" class="status-filter"></select>
             <span class="filter-count" id="vonmir-count"></span>
           </div>
           <div class="aufgaben-liste" id="vonmir-liste"></div>
@@ -89,9 +89,9 @@
         <div class="card">
           <div class="filter-bar">
             <input type="search" id="filter-suche" placeholder="Suche in Titel und Beschreibung…" />
-            <select id="filter-person"><option value="">Alle Personen</option></select>
-            <select id="filter-ressort"><option value="">Alle Ressorts</option></select>
-            <select id="filter-status" class="status-filter"></select>
+            <select id="filter-person" aria-label="Nach Person filtern"><option value="">Alle Personen</option></select>
+            <select id="filter-ressort" aria-label="Nach Ressort filtern"><option value="">Alle Ressorts</option></select>
+            <select id="filter-status" aria-label="Nach Status filtern" class="status-filter"></select>
             <span class="filter-count" id="filter-count"></span>
           </div>
           <div class="aufgaben-liste" id="alle-liste"></div>
@@ -132,7 +132,7 @@
           <div class="zert-leiste">
             <div class="zert-arten" id="zert-arten"></div>
             <label class="zert-schalter"><input type="checkbox" id="zert-nur-offen" /> Nur offene zeigen</label>
-            <select id="zert-ressort-filter"><option value="">Alle Ressorts</option></select>
+            <select id="zert-ressort-filter" aria-label="Kriterien nach Ressort filtern"><option value="">Alle Ressorts</option></select>
             <span class="filter-count" id="zert-count"></span>
           </div>
 

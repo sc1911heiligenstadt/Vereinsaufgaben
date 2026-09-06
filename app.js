@@ -624,10 +624,10 @@ function oeffneDetail(id) {
         <div class="detail-block">
           <h4>Auftrag</h4>
           <div class="form-grid">
-            <div class="form-field wide"><label>Titel</label><input type="text" id="dt-titel" maxlength="200" value="${escapeHtml(a.titel || "")}" /></div>
-            <div class="form-field"><label>Frist</label><input type="date" id="dt-faellig" value="${escapeHtml(a.faellig || "")}" /></div>
-            <div class="form-field"><label>Priorität</label><select id="dt-prioritaet">${PRIORITAETEN.map((p) => `<option value="${p.id}"${p.id === a.prioritaet ? " selected" : ""}>${escapeHtml(p.label)}</option>`).join("")}</select></div>
-            <div class="form-field wide"><label>Beschreibung</label><textarea id="dt-beschreibung" rows="4" maxlength="4000">${escapeHtml(a.beschreibung || "")}</textarea></div>
+            <div class="form-field wide"><label for="dt-titel">Titel</label><input type="text" id="dt-titel" maxlength="200" value="${escapeHtml(a.titel || "")}" /></div>
+            <div class="form-field"><label for="dt-faellig">Frist</label><input type="date" id="dt-faellig" value="${escapeHtml(a.faellig || "")}" /></div>
+            <div class="form-field"><label for="dt-prioritaet">Priorität</label><select id="dt-prioritaet">${PRIORITAETEN.map((p) => `<option value="${p.id}"${p.id === a.prioritaet ? " selected" : ""}>${escapeHtml(p.label)}</option>`).join("")}</select></div>
+            <div class="form-field wide"><label for="dt-beschreibung">Beschreibung</label><textarea id="dt-beschreibung" rows="4" maxlength="4000">${escapeHtml(a.beschreibung || "")}</textarea></div>
           </div>
           <button class="btn small" id="dt-speichern">Änderung speichern</button>
           <p class="muted" style="margin-top:6px;">Jede Änderung wird unten im Verlauf mit altem und neuem Wert festgehalten.</p>

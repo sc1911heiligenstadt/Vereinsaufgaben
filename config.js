@@ -44,6 +44,18 @@ const MAX_ANHANG_MB = 8;
 
 const APP_CHANGELOG = [
   {
+    version: "1.3",
+    groups: [
+      {
+        title: "Beschriftungen im Auftrags-Block sind mit ihrem Feld verbunden",
+        items: [
+          "Titel, Frist, Priorität und Beschreibung trugen ihre Beschriftung daneben, ohne mit ihr verknüpft zu sein. Ein Vorleseprogramm nennt dann nur ‚Eingabefeld‘, und ein Klick auf die Beschriftung setzte den Schreibzeiger nicht ins Feld.",
+          "Am Bildschirm ändert sich nichts."
+        ]
+      }
+    ]
+  },
+  {
     version: "1.2",
     groups: [
       {

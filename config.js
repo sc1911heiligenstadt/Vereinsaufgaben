@@ -42,7 +42,132 @@ const STATUS_FILTER_AUSWAHL = [
 
 const MAX_ANHANG_MB = 8;
 
+// Was die Vereinsaufgaben koennen -- steht im Info-Reiter als Karte "Funktionen".
+// WICHTIG: Das ist NICHT der Changelog. Hier steht der ZUSTAND ("Aufgaben lassen
+// sich einem Ressort zuweisen"), dort die Aenderung. Wer eine Funktion umbaut oder
+// abschaltet, zieht diesen Text mit -- und ebenso E:\SC1911-Tools-Anleitung.txt,
+// wo dasselbe ausfuehrlich steht.
+const APP_FUNKTIONEN = [
+  {
+    title: "Wofür die Vereinsaufgaben da sind",
+    items: [
+      "Hier steht, was eine Person einer anderen aufträgt — mit Frist, Zuständigkeit, Abnahme und dauerhafter Historie.",
+      "Was man sich selbst notiert, gehört in „Meine ToDos“ in der Kopfzeile der Tools-Übersicht. Zwei Orte für dieselbe Sache wären eine Doppelung.",
+      "Auch ohne offene Aufgabe beantwortet die App die Frage, wer wofür zuständig ist."
+    ]
+  },
+  {
+    title: "Eine Aufgabe vergeben",
+    items: [
+      "Eine Aufgabe geht an eine Person oder an ein Ressort — mit Pflicht-Frist, Priorität, Beschreibung und wahlweise einem Anhang bis 8 MB.",
+      "An ein Ressort zugewiesen heißt: der Verantwortliche erledigt, die Mitglieder sehen mit. Alternativ fächert eine Zuweisung in eine eigene Aufgabe je Ressort-Mitglied auf — für Fälle, in denen jeder einzeln liefern muss.",
+      "Auf Wunsch muss der Zuweiser die Erledigung abnehmen. Die Aufgabe wartet dann als „Zur Abnahme“ und lässt sich mit Begründung zurückgeben."
+    ]
+  },
+  {
+    title: "Erledigen, ablehnen, wieder öffnen",
+    items: [
+      "Der Empfänger hakt ab, kommentiert und kann einen Nachweis hochladen. Den Text der Aufgabe ändert er nie.",
+      "Wer eine Aufgabe für falsch adressiert hält, lehnt sie mit Begründung ab, statt sie stillschweigend liegen zu lassen.",
+      "„Wieder öffnen…“ holt eine erledigte, abgelehnte oder zurückgezogene Aufgabe zurück auf offen. Der Verlauf hält fest, aus welchem Zustand sie zurückkam und von wem.",
+      "Erledigte Aufgaben bleiben dauerhaft sichtbar. Es gibt keine automatische Löschfrist."
+    ]
+  },
+  {
+    title: "Ressorts und Zuständigkeiten",
+    items: [
+      "Jedes Ressort hat eine Zuständigkeitsbeschreibung, genau einen Verantwortlichen, einen Stellvertreter und weitere Mitglieder.",
+      "Zuweisen darf, wer ein Ressort verantwortet oder vertritt — und zwar an die Mitglieder seines Ressorts. Wer die App administriert, weist jedem zu.",
+      "Beim Ausscheiden lassen sich alle offenen Aufgaben einer Person in einem Schritt auf jemand anderen übertragen. Erledigtes bleibt beim ursprünglichen Bearbeiter stehen."
+    ]
+  },
+  {
+    title: "An eine Aufgabe erinnern",
+    items: [
+      "Offene Aufgaben haben einen Knopf „🔔 Erinnern“. Er schickt dem Empfänger dieselbe E-Mail wie beim Zuweisen noch einmal, dazu eine Nachricht aufs Handy, wenn er dafür ein Gerät angemeldet hat.",
+      "Den Knopf sieht, wer die Aufgabe gestellt hat, und wer die App administriert. An die eigene Aufgabe kann man sich nicht selbst erinnern.",
+      "Höchstens eine Erinnerung alle zwölf Stunden je Aufgabe. Jede steht mit Zeitpunkt und Namen im Verlauf des Vorgangs."
+    ]
+  },
+  {
+    title: "Benachrichtigung per E-Mail",
+    items: [
+      "Wer eine neue Aufgabe bekommt, wird per E-Mail informiert — mit Titel, Ressort, Frist und Text. Wer nur mitliest, bekommt keine Mail.",
+      "Eine vertrauliche Aufgabe verrät in der E-Mail weder Titel noch Text — nur, dass es sie gibt und bis wann sie läuft.",
+      "Nur das Anlegen löst eine Mail aus. Erledigungen, Abnahmen und Kommentare bleiben im Mailweg still, damit aus der Benachrichtigung kein Rauschen wird.",
+      "Die Adresse kommt aus den Trainerdaten. Fehlt sie, sagt die App beim Zuweisen ausdrücklich, wer keine E-Mail bekommen hat."
+    ]
+  },
+  {
+    title: "Nachricht aufs Handy",
+    items: [
+      "Rückfragen und alle Statuswechsel melden sich aufs Handy: erledigt gemeldet, zur Abnahme, abgenommen, abgelehnt, zurückgegeben, zurückgezogen und wieder geöffnet.",
+      "Benachrichtigt werden ausschließlich die beiden Beteiligten eines Vorgangs. Wer über sein Ressort nur mitliest, bekommt nichts.",
+      "Die Nachricht nennt weder den Titel noch einen Namen noch den Wortlaut einer Rückfrage — sie steht auf dem Sperrbildschirm, den auch jemand anders sehen kann.",
+      "Eingeschaltet wird das in der Tools-Übersicht unter „Mein Konto“."
+    ]
+  },
+  {
+    title: "Klubzertifizierung",
+    items: [
+      "Der Reiter „Zertifizierung“ führt alle 78 Kriterien des Verbandes: 29 Basiskriterien, die alle erfüllt sein müssen, und 49 Zusatzkriterien — gegliedert nach Spielbetrieb, Organisation & Strategie und Vereinskultur.",
+      "Zwei Balken zeigen den Stand. Eine Schwelle, ab der die Zertifizierung geschafft wäre, zeigt die App bewusst nicht — die Regel dafür liegt beim Verband.",
+      "Jedes Kriterium lässt sich auf „Erfüllt“ setzen, Zusatzkriterien zusätzlich auf „Passt nicht zu uns“. „In Arbeit“ zeigt die App von selbst an, solange an einem offenen Kriterium eine Aufgabe hängt.",
+      "Zu jedem Kriterium gehören eine Notiz, beliebige Nachweis-Dateien und eine Ressort-Zuordnung. Die Kriterienliste selbst stammt vom Verband und ist in der App nicht änderbar."
+    ]
+  },
+  {
+    title: "Aufgaben und Bericht zur Zertifizierung",
+    items: [
+      "An jedem Kriterium lassen sich Aufgaben anlegen: was zu tun ist, wer es macht und bis wann. Die Frist ist hier freiwillig, und ein Kriterium kann mehrere Aufgaben haben.",
+      "Abhaken darf die zuständige Person, wer die Aufgabe angelegt hat, und wer die App administriert. Es gibt hier keine Abnahme und kein Ablehnen — ein Haken ist ein Haken.",
+      "⚠️ Diese Aufgaben verschicken weder eine E-Mail noch eine Nachricht aufs Handy. Wer eine Aufgabe verteilt, muss der Person selbst Bescheid sagen.",
+      "„Bericht drucken“ öffnet eine Seite mit allen 78 Kriterien, ihrem Status, den Notizen und den offenen Aufgaben — immer der vollständige Stand, nie die gerade gefilterte Ansicht."
+    ]
+  },
+  {
+    title: "Übersicht, Filter und Export",
+    items: [
+      "Startbild der Verwaltung ist die Personenübersicht „Wer tut was“: je Funktionär offen, überfällig und erledigt auf einen Blick, aufklappbar bis zur einzelnen Aufgabe.",
+      "Die Gesamtliste ist nach Person, Ressort, Status und Frist filterbar. Der Statusfilter steht von sich aus auf „Offen und zur Abnahme“ — also auf dem, was tatsächlich noch Arbeit macht.",
+      "Neben jedem Filter steht, wie viel gerade ausgeblendet ist. Die Zahlen an den Personen und am Reiter „Meine Aufgaben“ zählen dagegen immer den echten Bestand.",
+      "Druckansicht und CSV-Export der gerade gefilterten Liste."
+    ]
+  },
+  {
+    title: "Vertraulichkeit und Nachvollziehbarkeit",
+    items: [
+      "Bei vertraulichen Aufgaben sehen Unbeteiligte nur Empfänger, Frist und Status. Der Text wird schon auf dem Server entfernt und nicht bloß am Bildschirm ausgeblendet.",
+      "Jede nachträgliche Änderung an Titel, Beschreibung, Frist oder Priorität wird am Vorgang protokolliert — mit altem und neuem Wert.",
+      "Gelöschte Aufgaben erscheinen im Protokoll der Verwaltung mit Zeitpunkt, Person und dem Status zum Zeitpunkt der Löschung.",
+      "Jede Änderung am Status eines Zertifizierungs-Kriteriums und an seiner Ressort-Zuordnung wird mit Zeitpunkt und Person festgehalten."
+    ]
+  },
+  {
+    title: "Wer was darf",
+    items: [
+      "Sehen: die eigenen Aufgaben und die des eigenen Ressorts.",
+      "Bearbeiten: zuweisen im eigenen Ressort, Druckansicht, CSV-Export und Zertifizierungs-Bericht — dazu Notiz, Nachweise, Ressort-Zuordnung und Aufgaben an einem Kriterium.",
+      "Administrieren: Ressorts pflegen, jedem zuweisen, Aufgaben übertragen, ändern, zurückziehen, löschen, das Protokoll einsehen — und den Status eines Zertifizierungs-Kriteriums setzen.",
+      "Abnehmen und zur Nacharbeit zurückgeben darf ausschließlich die Person, die die Aufgabe gestellt hat — auch Administrieren nicht an ihrer Stelle. Der Reiter „Info“ ist für alle sichtbar."
+    ]
+  }
+];
+
 const APP_CHANGELOG = [
+  {
+    version: "1.4",
+    groups: [
+      {
+        title: "Im Info-Reiter steht, was die App kann",
+        items: [
+          "Die Liste der Änderungen und die Versionsnummer sind aus dem Info-Reiter verschwunden.",
+          "Stattdessen steht dort die Karte „Funktionen“: was die App kann, nach Themen geordnet.",
+          "Was sich geändert hat, steht weiterhin in den Neuigkeiten auf der Startseite der Tools-Übersicht."
+        ]
+      }
+    ]
+  },
   {
     version: "1.3",
     groups: [

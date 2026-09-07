@@ -511,7 +511,33 @@ function renderInfo() {
     ? `Angemeldet als ${nameVon(currentUser.username)} — ${canAdmin() ? "Administrieren" : canEdit() ? "Bearbeiten" : "Sehen"}.`
     : "";
 
-  document.getElementById("changelog-list").innerHTML = APP_CHANGELOG.map((v) => `
+  renderFunktionen();
+  renderChangelog();
+}
+
+// Was die App kann -- steht im Info-Reiter als Karte "Funktionen". Das ist NICHT
+// der Changelog: hier steht der Zustand, dort die Aenderung. Der Text liegt als
+// APP_FUNKTIONEN in config.js.
+function renderFunktionen() {
+  const container = document.getElementById("funktionen-list");
+  if (!container) return;
+  container.innerHTML = APP_FUNKTIONEN.map((g) => `
+    <div class="changelog-group">
+      <div class="cg-title">${escapeHtml(g.title)}</div>
+      <ul class="cg-items">${g.items.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>
+    </div>
+  `).join("");
+}
+
+// Die Karte "Aenderungen" ist seit 07.09.2026 aus dem Info-Reiter raus.
+// APP_CHANGELOG bleibt in config.js gepflegt und wird weiter geschrieben -- es
+// ist die Quelle fuer die grosse Anleitung und fuer die Neuigkeiten-Meldungen
+// der Tools-Uebersicht. Diese Funktion steigt darum still aus, wenn es das Ziel
+// nicht gibt, statt beim Seitenstart mit einem Fehler abzubrechen.
+function renderChangelog() {
+  const container = document.getElementById("changelog-list");
+  if (!container) return;
+  container.innerHTML = APP_CHANGELOG.map((v) => `
     <div class="changelog-version">
       <h3>Version ${escapeHtml(v.version)}</h3>
       ${v.groups.map((g) => `
@@ -1946,8 +1972,6 @@ function setupListeners() {
 // ---------- Start ----------
 
 async function init() {
-  document.getElementById("version-badge-2").textContent = "v" + APP_VERSION;
-
   // ⚠️ Hier liefen bis 2026-08-28 DREI Worker-Aufrufe streng nacheinander:
   // me -> list-tool-editors -> vereinsaufgaben-load. Bei ~180 ms je Roundtrip
   // eine gute halbe Sekunde, bevor die erste Aufgabe zu sehen ist.

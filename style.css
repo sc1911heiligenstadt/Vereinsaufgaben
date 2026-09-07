@@ -654,3 +654,7 @@ nav .nav-right { margin-left: auto; display: flex; flex-wrap: wrap; gap: inherit
   .zz-rechts { width:100%; justify-content:flex-start; }
   .zert-aufgabe-row { align-items:flex-start; }
 }
+
+/* Karte "Funktionen" im Info-Reiter -- gleiche Bausteine wie der Changelog,
+   nur ohne Versionsmarke, darum etwas mehr Luft zwischen den Themen. */
+#funktionen-list { display: flex; flex-direction: column; gap: 18px; font-size: 13px; }
